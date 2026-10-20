@@ -1,6 +1,6 @@
 {
   "name": "zcode-document-reviewer",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "private": true,
   "description": "ZCode Document Reviewer UI Plugin",
   "type": "module",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.0",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "docx-preview": "^0.4.1",
     "mammoth": "^1.13.0",
     "markdown-it": "14.1.0",
     "node-html-parser": "^9.0.5",

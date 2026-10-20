@@ -706,6 +706,76 @@ textarea {
   cursor: text;
 }
 
+/* ------------------------------------------------------------- docx view */
+.docx-view {
+  position: relative;
+  min-height: 100%;
+  padding: 18px 0 48px;
+  background: var(--panel-2);
+}
+
+.docx-style {
+  display: none;
+}
+
+.docx-pages {
+  width: fit-content;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.docx-pages .docx-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.docx-pages .docx {
+  background: #fff;
+  color: #111;
+  margin: 0 auto;
+  box-shadow: 0 3px 24px rgba(0, 0, 0, 0.22);
+}
+
+.docx-pages .docx p,
+.docx-pages .docx span,
+.docx-pages .docx td,
+.docx-pages .docx th,
+.docx-pages .docx li {
+  color: inherit;
+}
+
+.docx-pages mark.hl {
+  border-radius: 2px;
+  padding: 0 1px;
+  color: inherit;
+  cursor: pointer;
+}
+.docx-pages mark.hl-draft {
+  background: rgba(255, 206, 84, 0.55);
+}
+.docx-pages mark.hl-sent {
+  background: rgba(94, 190, 125, 0.45);
+}
+.docx-pages mark.hl-active {
+  background: rgba(90, 155, 255, 0.55);
+  box-shadow: 0 0 0 1.5px #4c86e8;
+}
+.docx-pages mark.hl-stale {
+  background: rgba(255, 150, 110, 0.5);
+}
+.docx-pages mark.hl-pending {
+  background: rgba(90, 155, 255, 0.3);
+  border-bottom: 2px dashed #4c86e8;
+}
+
 /* ------------------------------------------------------------- margin pins */
 .annotation-pin-layer {
   position: absolute;

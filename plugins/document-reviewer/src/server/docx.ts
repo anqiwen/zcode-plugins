@@ -208,6 +208,6 @@ export async function docxToMarkdown(buffer: Buffer): Promise<DocxConversion> {
     markdown,
     warnings: result.messages
       .map((message: { message: string }) => message.message)
-      .filter((message) => !benignWarnings.some((pattern) => pattern.test(message))),
+      .filter((message: string) => !benignWarnings.some((pattern) => pattern.test(message))),
   };
 }

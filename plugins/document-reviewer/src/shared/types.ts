@@ -18,6 +18,8 @@ export interface DocumentInfo {
   external?: boolean;
   chunkCount: number;
   chunkBytes: number;
+  /** Number of 1 MiB chunks for the raw file bytes (docx original preview). */
+  byteChunkCount?: number;
   /** Opaque token used to read the file through ui://document-reviewer/file/<token>/<i>. */
   token: string;
   /** Non-fatal warnings, e.g. truncated preview. */

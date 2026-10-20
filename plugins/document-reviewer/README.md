@@ -16,7 +16,7 @@
 | Markdown | 渲染视图（标题、列表、表格、代码块）与源码视图切换；两种视图均可精确选区 |
 | TXT | 按块渲染，长文档使用 `content-visibility` 分块优化 |
 | PDF | pdf.js 渲染、自适应宽度、缩放（40%–300%）、文本层选择、跨页选区自动拆分 |
-| DOCX | Mammoth 转 Markdown 预览；批注按原文文本 + 前后文 + 出现序号定位 |
+| DOCX | 原版样式（docx-preview）/ Markdown 双预览；批注按原文文本 + 前后文 + 出现序号定位 |
 | 批注 | 浮动「添加批注」、多行输入、`Ctrl+Enter` 保存、`Esc` 取消 |
 | 批注意图 | 修改 / 删除 / 疑问 三选一；疑问只要求 Agent 回答、不改文件，删除可直接留空意见 |
 | 批注管理 | 右侧列表、定位、编辑、单条删除、批量清空、删除撤销提示 |
@@ -314,13 +314,22 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 
 **未完成的真机验证：** ZCode 桌面端的自动化键盘输入被系统输入通道拦截，未能在真实面板里用脚本完成「点击 → 输入批注 → 发送」全流程；该流程已在模拟宿主中用同一份 `dist/panel.html`、同一套 MCP 服务完整跑通，真实宿主侧的工具加载与调用已单独验证。建议首次安装后手工点一遍发送，确认输入区出现消息。
 
+### 0.10.0 DOCX 原版样式预览（2026-10-20）
+
+| # | 测试 | 结果 |
+| --- | --- | --- |
+| 52 | DOCX 原版样式渲染 | 通过：`sample.docx` 以白底 Word 样式页面渲染，标题、正文、上下标正常 |
+| 53 | 原版 / Markdown 切换 | 通过：两种模式切换后正文和已有批注高亮保留 |
+| 54 | 原版选区与批注 | 通过：选中「Response to Reviewers」可添加批注，锚点写入转换文本 |
+| 55 | 原版高亮 / pin / 就地编辑 | 通过：正文高亮、右侧序号 pin、点击高亮打开就地编辑均正常 |
+
 ---
 
 ## 已知限制
 
 1. **仅桌面本地工作区**。按官方约定，UI 面板用于 ZCode Desktop 本地工作区；Web、手机和远程工作区只会保留普通 MCP 工具。
 2. **只读**。插件不会写回原文件，必须由 Agent 执行修改。
-3. **格式**：`.md` / `.markdown` / `.txt` / `.pdf` / `.docx`。DOCX 只读正文，页眉页脚、脚注、批注、修订痕迹和嵌入对象可能丢失。
+3. **格式**：`.md` / `.markdown` / `.txt` / `.pdf` / `.docx`。DOCX 原版预览可显示正文、表格、图片和大部分样式；复杂公式/域、批注、修订痕迹和嵌入对象可能不完整。Markdown 预览只读正文。
 4. **单文件 100 MiB**。PDF 按 1 MiB 分片读取，面板资源单次读取上限 8 MiB；超大 PDF 首次打开会明显变慢。
 5. **扫描版 PDF 无文本层**，只能看渲染结果，无法选中文字。本插件不做 OCR。
 6. **PDF 选区跨页**时会自动拆成多条批注（每页一条，共用同一修改意见）。
@@ -334,19 +343,25 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 14. **序号 pin 由 DOM 矩形计算**。长文档使用 `content-visibility` 分块渲染，滚动或字体加载后会重新计算；极少数情况下（图片/字体异步加载）可能出现短暂偏移。
 15. **`.bak` 备份是消息里的要求**，不是插件强制执行的；如果 Agent 没有备份，插件无法阻止它直接改原文件。
 16. **工作区外文件**必须通过绝对路径或系统文件选择器打开，不会出现在左侧工作区文件列表中；登记只在本次 MCP 服务会话内有效，服务重启后需要重新打开。Windows 使用 PowerShell 文件对话框，macOS/Linux 为尽力支持；对话框不可用时仍可手动输入路径。
+17. **DOCX 原版预览由 docx-preview 在浏览器渲染**，分页、表格、图片和大部分样式可保留；复杂 OMML 公式、域代码和分页可能与 Word 有差异。批注锚点仍基于转换后的 Markdown 文本，选中包含 Mammoth 忽略内容（如复杂公式）时可能无法定位。
 
 ---
 
 ## DOCX 实现与后续建议
 
-已实现：Mammoth 的浏览器构建（`mammoth/mammoth.browser.js`，避免 Node `require` 与 ESM 打包冲突）生成 HTML，再用 `node-html-parser` 转成**干净 Markdown**（标题、段落、列表、表格、加粗/斜体、图片占位），由现有 Markdown 渲染器显示。图片不内嵌 base64，避免大文件。
+已实现两种预览：
+
+- **原版样式（默认）**：`docx-preview` 直接在面板内解析 DOCX 的 OOXML，渲染分页、段落、表格、图片、页眉页脚和大部分样式，并支持基础 OMML 公式。
+- **Markdown**：Mammoth 的浏览器构建（`mammoth/mammoth.browser.js`，避免 Node `require` 与 ESM 打包冲突）生成 HTML，再用 `node-html-parser` 转成**干净 Markdown**（标题、段落、列表、表格、加粗/斜体、图片占位），作为批注锚点的规范文本。
+
+两种模式共用同一份转换文本作为锚点：原版模式中的选区和已有批注高亮会通过 quote/上下文回找到这份文本；Agent 始终修改 Word 原文件。
 
 后续可改进：
 
-1. **保留原样式**：Mammoth 的样式映射（`styleMap`）可以把 Word 的标题/引用样式映射得更准。
-2. **修订与批注**：用 python-docx 读取 `w:ins`/`w:del`/`w:comment`，在预览中标记修订，但工作量较大。
-3. **精确锚点**：解析 OOXML 段落 ID（`w14:paraId`）与文本节点偏移，把锚点绑定到段落 ID，可比纯文本匹配稳得多；这是下一步最值得做的。
-4. **表格与页眉页脚**：当前表格转 GFM，页眉页脚未纳入预览。
+1. **精确锚点**：解析 OOXML 段落 ID（`w14:paraId`）与文本节点偏移，把锚点绑定到段落 ID，可比纯文本匹配稳得多；这是下一步最值得做的。
+2. **公式与域**：docx-preview 已支持基础 OMML；复杂公式、域代码和自动编号仍可能与 Word 有差异。
+3. **修订与批注**：读取 `w:ins`/`w:del`/`w:comment`，在预览中标记修订，工作量较大。
+4. **分页**：docx-preview 按 Word 记录的显式分页符分页；长文档没有分页符时会显示为连续长页。
 5. **其他格式**：`.html` 可直接复用选区模型；`.tex` 适合源码视图；`.csv` 适合表格选区。
 
 ---
@@ -357,7 +372,7 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 - 页面运行在宿主沙箱中，无 Node / 任意文件系统权限；文件读取只能通过本插件 MCP 服务的受控接口。
 - 所有路径都做 `realpath` 校验。默认限制在工作区内；工作区外文件必须由用户在面板中主动输入绝对路径打开，打开后才会登记到本次服务会话，Agent 不能调用外部打开工具。
 - 发送的内容仅包括：工作区相对路径（外部文件则为用户打开的绝对路径）、文件哈希前缀、批注原文与上下文、用户修改意见。不包含文件全文。
-- DOCX 转换在本地 MCP 服务进程内完成，不联网。
+- DOCX 原版预览由 `docx-preview` 在面板沙箱内解析，不联网；Markdown 转换在本地 MCP 服务进程内完成，不联网。
 - 插件安装即授予代码执行信任；发布前请审查 `dist/server.mjs` 与 `dist/panel.html`。
 
 ---
@@ -372,6 +387,7 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 | `markdown-it` | 14.1.0 | Markdown 解析（自行渲染以保留源码偏移） |
 | `pdfjs-dist` | 5.4.296 | PDF 渲染与文本层 |
 | `mammoth` | 1.13.0 | DOCX → HTML（浏览器构建，避免动态 require） |
+| `docx-preview` | 0.4.1 | DOCX 原版样式渲染（OOXML → 分页 DOM） |
 | `node-html-parser` | 最新 | Mammoth HTML → 干净 Markdown |
 | `esbuild` | 0.25.12 | 打包 |
 

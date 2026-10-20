@@ -30,6 +30,7 @@ const SURFACE_ID = "reviewer";
 const PANEL_URI = "ui://document-reviewer/panel.html";
 const ASSET_PREFIX = "ui://document-reviewer/assets/";
 const FILE_PREFIX = "ui://document-reviewer/file/";
+const RAW_PREFIX = "ui://document-reviewer/raw/";
 const HTML_MIME = "text/html;profile=mcp-app";
 const CHUNK_BYTES = 1024 * 1024;
 const MAX_CACHED_DOCS = 4;
@@ -183,6 +184,7 @@ async function openDocumentToken(
     token,
     chunkCount,
     chunkBytes: isBinary ? CHUNK_BYTES : TEXT_CHUNK_CHARS,
+    byteChunkCount: Math.max(1, Math.ceil(loaded.bytes.byteLength / CHUNK_BYTES)),
     ...(loaded.info.kind === "docx" ? { converted: true } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
   };
@@ -743,6 +745,39 @@ server.registerResource(
         {
           uri: uri.href,
           mimeType: "application/pdf",
+          blob: slice.toString("base64"),
+        },
+      ],
+    };
+  },
+);
+
+server.registerResource(
+  "raw-file",
+  new ResourceTemplate(`${RAW_PREFIX}{token}/{index}`, { list: undefined }),
+  {},
+  async (uri) => {
+    const rest = uri.href.slice(RAW_PREFIX.length);
+    const match = /^([A-Za-z0-9]+)\/(\d+)$/.exec(rest);
+    if (!match) throw new Error(`Invalid raw file resource: ${uri.href}`);
+    const [, token, indexRaw] = match;
+    const entry = docCache.get(token);
+    if (!entry) throw new Error("文档已关闭或缓存已过期，请重新打开");
+    const index = Number(indexRaw);
+    const chunkCount = Math.max(1, Math.ceil(entry.bytes.byteLength / CHUNK_BYTES));
+    if (!Number.isInteger(index) || index < 0 || index >= chunkCount) {
+      throw new Error(`Raw chunk out of range: ${index}`);
+    }
+    const start = index * CHUNK_BYTES;
+    const slice = entry.bytes.subarray(
+      start,
+      Math.min(entry.bytes.byteLength, start + CHUNK_BYTES),
+    );
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/octet-stream",
           blob: slice.toString("base64"),
         },
       ],

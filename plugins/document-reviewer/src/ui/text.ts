@@ -34,7 +34,7 @@ export function makeTextAnchor(text: string, start: number, end: number): TextAn
   };
 }
 
-function normalizeWhitespace(value: string): string {
+export function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
@@ -186,6 +186,120 @@ export function annotationsForRange(
       annotation.anchor.start < end &&
       annotation.anchor.end > start,
   );
+}
+
+interface NormalizedTextIndex {
+  text: string;
+  starts: number[];
+  ends: number[];
+}
+
+let cachedNormalizedSource = "";
+let cachedNormalizedIndex: NormalizedTextIndex | null = null;
+
+function normalizedTextIndex(source: string): NormalizedTextIndex {
+  if (cachedNormalizedIndex && cachedNormalizedSource === source) {
+    return cachedNormalizedIndex;
+  }
+  const chars: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let previousSpace = false;
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (/\s/.test(ch)) {
+      if (!previousSpace && chars.length > 0) {
+        chars.push(" ");
+        starts.push(i);
+        ends.push(i + 1);
+      }
+      previousSpace = true;
+      continue;
+    }
+    chars.push(ch);
+    starts.push(i);
+    ends.push(i + 1);
+    previousSpace = false;
+  }
+  while (chars.length > 0 && chars[chars.length - 1] === " ") {
+    chars.pop();
+    starts.pop();
+    ends.pop();
+  }
+  cachedNormalizedSource = source;
+  cachedNormalizedIndex = { text: chars.join(""), starts, ends };
+  return cachedNormalizedIndex;
+}
+
+function selectionSideText(
+  root: HTMLElement,
+  range: Range,
+  side: "before" | "after",
+): string {
+  try {
+    const probe = document.createRange();
+    probe.selectNodeContents(root);
+    if (side === "before") probe.setEnd(range.startContainer, range.startOffset);
+    else probe.setStart(range.endContainer, range.endOffset);
+    const text = normalizeWhitespace(probe.toString());
+    return side === "before" ? text.slice(-80) : text.slice(0, 80);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Resolves a selection made inside the docx-preview DOM. The rendered DOCX has
+ * no source offsets, so the visible quote is matched against the converted
+ * Markdown text (the canonical anchor source), using nearby context when the
+ * quote occurs more than once.
+ */
+export function resolveDocxDomSelection(
+  root: HTMLElement,
+  source: string,
+): DomTextSelection | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return null;
+
+  const quote = normalizeWhitespace(selection.toString());
+  if (!quote) return null;
+
+  const before = selectionSideText(root, range, "before");
+  const after = selectionSideText(root, range, "after");
+  const index = normalizedTextIndex(source);
+
+  let best: { start: number; end: number; score: number } | null = null;
+  let from = 0;
+  while (from <= index.text.length) {
+    const at = index.text.indexOf(quote, from);
+    if (at < 0) break;
+    const sourceBefore = index.text.slice(Math.max(0, at - 80), at);
+    const sourceAfter = index.text.slice(at + quote.length, at + quote.length + 80);
+    let score = 0;
+    if (before && sourceBefore.endsWith(before)) score += 2;
+    if (after && sourceAfter.startsWith(after)) score += 2;
+    const candidate = {
+      start: index.starts[at],
+      end: index.ends[at + quote.length - 1],
+      score,
+    };
+    if (!best || candidate.score > best.score) best = candidate;
+    if (score >= 4) break;
+    from = at + Math.max(1, quote.length);
+  }
+
+  if (!best) return null;
+  const start = Math.max(0, Math.min(best.start, source.length));
+  const end = Math.max(start, Math.min(best.end, source.length));
+  if (end <= start) return null;
+  return {
+    start,
+    end,
+    quote,
+    sourceQuote: source.slice(start, end),
+  };
 }
 
 export function documentTextAnchorFor(

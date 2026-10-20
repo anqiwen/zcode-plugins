@@ -24,6 +24,7 @@ import { ToolError } from "./bridge.js";
 import { MarkdownView } from "./markdown.js";
 import { TextView } from "./TextView.js";
 import { PdfViewer, resolvePdfSelection, type PdfSelectionResult } from "./PdfViewer.js";
+import { DocxViewer } from "./DocxViewer.js";
 import type { RenderAnnotation } from "./highlight.js";
 import {
   buildLineOffsets,
@@ -31,11 +32,12 @@ import {
   makeDocxAnchor,
   makeTextAnchor,
   relocateTextAnchor,
+  resolveDocxDomSelection,
   resolveDomSelection,
 } from "./text.js";
 
 type OpenDoc =
-  | { kind: "text"; info: DocumentInfo; text: string }
+  | { kind: "text"; info: DocumentInfo; text: string; docxBytes?: Uint8Array }
   | { kind: "pdf"; info: DocumentInfo; bytes: Uint8Array };
 
 interface FileEntry {
@@ -314,6 +316,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
   const [doc, setDoc] = useState<OpenDoc | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"rendered" | "source">("rendered");
+  const [docxView, setDocxView] = useState<"original" | "markdown">("original");
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -491,6 +494,40 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
         }
         return { kind: "pdf", info, bytes };
       }
+      if (info.kind === "docx") {
+        let docxBytes: Uint8Array | undefined;
+        try {
+          const count = Math.max(
+            1,
+            info.byteChunkCount ?? Math.ceil(info.size / (1024 * 1024)),
+          );
+          const raw: Uint8Array[] = [];
+          for (let i = 0; i < count; i += 1) {
+            const contents = await bridge.readResource(
+              `ui://document-reviewer/raw/${info.token}/${i}`,
+            );
+            if (typeof contents.blob !== "string") {
+              throw new ToolError("bad_chunk", "DOCX 分片格式错误");
+            }
+            raw.push(base64ToBytes(contents.blob));
+          }
+          const total = raw.reduce((sum, part) => sum + part.byteLength, 0);
+          docxBytes = new Uint8Array(total);
+          let offset = 0;
+          for (const part of raw) {
+            docxBytes.set(part, offset);
+            offset += part.byteLength;
+          }
+        } catch {
+          docxBytes = undefined;
+        }
+        return {
+          kind: "text",
+          info,
+          text: (parts as string[]).join(""),
+          docxBytes,
+        };
+      }
       return { kind: "text", info, text: (parts as string[]).join("") };
     },
     [bridge],
@@ -552,13 +589,18 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
         const document = await readChunks(info);
         setDoc(document);
         setViewMode("rendered");
+        setDocxView("original");
         setPdfZoom(1);
         setPdfPageCount(0);
         setLastDocPath(info.path);
         setAnnotations((current) =>
           reanchor(current, info!, document.kind === "text" ? document.text : null),
         );
-        setDocWarnings(info.warnings ?? []);
+        const warnings = [...(info.warnings ?? [])];
+        if (info.kind === "docx" && document.kind === "text" && !document.docxBytes) {
+          warnings.push("DOCX 原版预览加载失败，已回退 Markdown");
+        }
+        setDocWarnings(warnings);
         openedRef.current = `${info.path}:${info.hash}`;
       } catch (error: any) {
         const message = error?.message || String(error);
@@ -577,10 +619,14 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
     if (!doc || doc.kind !== "text") return;
     const root = textRef.current;
     if (!root) return;
-    const resolved = resolveDomSelection(root, doc.text, {
-      quoteFromSelection:
-        doc.info.kind === "docx" || (doc.info.kind === "md" && viewMode === "rendered"),
-    });
+    const resolved =
+      doc.info.kind === "docx" && docxView === "original"
+        ? resolveDocxDomSelection(root, doc.text)
+        : resolveDomSelection(root, doc.text, {
+            quoteFromSelection:
+              doc.info.kind === "docx" ||
+              (doc.info.kind === "md" && viewMode === "rendered"),
+          });
     if (!resolved) {
       setSelection(null);
       return;
@@ -598,7 +644,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
       top: rect ? Math.max(8, rect.top - 44) : 80,
       left: rect ? Math.max(8, Math.min(window.innerWidth - 140, rect.left + rect.width / 2 - 60)) : 80,
     });
-  }, [doc, viewMode]);
+  }, [doc, viewMode, docxView]);
 
   useEffect(() => {
     const root = textRef.current;
@@ -1666,6 +1712,22 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                   </button>
                 </div>
               ) : null}
+              {doc.info.kind === "docx" ? (
+                <div className="segmented">
+                  <button
+                    className={docxView === "original" ? "active" : ""}
+                    onClick={() => setDocxView("original")}
+                  >
+                    原版
+                  </button>
+                  <button
+                    className={docxView === "markdown" ? "active" : ""}
+                    onClick={() => setDocxView("markdown")}
+                  >
+                    Markdown
+                  </button>
+                </div>
+              ) : null}
               {doc.info.kind === "pdf" ? (
                 <div className="zoom-controls">
                   <button
@@ -1847,13 +1909,28 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
               {doc.info.kind === "docx" || docWarnings.length > 0 ? (
                 <div className={`doc-banner${docWarnings.length === 0 ? " external-banner" : ""}`}>
                   {doc.info.kind === "docx"
-                    ? "DOCX 已转换为 Markdown 预览；批注按原文文本匹配定位，Agent 会在 Word 原文中核对。"
+                    ? docxView === "original" && doc.docxBytes
+                      ? "DOCX 原版样式预览；批注按原文文本匹配定位，Agent 会在 Word 原文中核对。"
+                      : "DOCX 已转换为 Markdown 预览；批注按原文文本匹配定位，Agent 会在 Word 原文中核对。"
                     : ""}
                   {doc.info.kind === "docx" && docWarnings.length > 0 ? "；" : ""}
                   {docWarnings.join("；")}
                 </div>
               ) : null}
-              {doc.info.kind === "docx" || (doc.info.kind === "md" && viewMode === "rendered") ? (
+              {doc.info.kind === "docx" && docxView === "original" && doc.docxBytes ? (
+                <div className="scroll-area" ref={viewerRef}>
+                  <DocxViewer
+                    bytes={doc.docxBytes}
+                    annotations={renderAnnotations}
+                    activeId={activeId}
+                    onMarkClick={handleMarkClick}
+                    containerRef={textRef}
+                    numberById={numberById}
+                    revision={docRevision}
+                    onError={setDocError}
+                  />
+                </div>
+              ) : doc.info.kind === "docx" || (doc.info.kind === "md" && viewMode === "rendered") ? (
                 <div className="scroll-area" ref={viewerRef}>
                   <MarkdownView
                     source={doc.text}

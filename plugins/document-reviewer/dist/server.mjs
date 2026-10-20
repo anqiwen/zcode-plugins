@@ -57643,6 +57643,7 @@ var SURFACE_ID = "reviewer";
 var PANEL_URI = "ui://document-reviewer/panel.html";
 var ASSET_PREFIX = "ui://document-reviewer/assets/";
 var FILE_PREFIX = "ui://document-reviewer/file/";
+var RAW_PREFIX = "ui://document-reviewer/raw/";
 var HTML_MIME = "text/html;profile=mcp-app";
 var CHUNK_BYTES = 1024 * 1024;
 var MAX_CACHED_DOCS = 4;
@@ -57762,6 +57763,7 @@ async function openDocumentToken(input2, options) {
     token,
     chunkCount,
     chunkBytes: isBinary ? CHUNK_BYTES : TEXT_CHUNK_CHARS,
+    byteChunkCount: Math.max(1, Math.ceil(loaded.bytes.byteLength / CHUNK_BYTES)),
     ...loaded.info.kind === "docx" ? { converted: true } : {},
     ...warnings.length > 0 ? { warnings } : {}
   };
@@ -58271,6 +58273,38 @@ server.registerResource(
         {
           uri: uri.href,
           mimeType: "application/pdf",
+          blob: slice.toString("base64")
+        }
+      ]
+    };
+  }
+);
+server.registerResource(
+  "raw-file",
+  new ResourceTemplate(`${RAW_PREFIX}{token}/{index}`, { list: void 0 }),
+  {},
+  async (uri) => {
+    const rest = uri.href.slice(RAW_PREFIX.length);
+    const match = /^([A-Za-z0-9]+)\/(\d+)$/.exec(rest);
+    if (!match) throw new Error(`Invalid raw file resource: ${uri.href}`);
+    const [, token, indexRaw] = match;
+    const entry = docCache.get(token);
+    if (!entry) throw new Error("\u6587\u6863\u5DF2\u5173\u95ED\u6216\u7F13\u5B58\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00");
+    const index = Number(indexRaw);
+    const chunkCount = Math.max(1, Math.ceil(entry.bytes.byteLength / CHUNK_BYTES));
+    if (!Number.isInteger(index) || index < 0 || index >= chunkCount) {
+      throw new Error(`Raw chunk out of range: ${index}`);
+    }
+    const start = index * CHUNK_BYTES;
+    const slice = entry.bytes.subarray(
+      start,
+      Math.min(entry.bytes.byteLength, start + CHUNK_BYTES)
+    );
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/octet-stream",
           blob: slice.toString("base64")
         }
       ]

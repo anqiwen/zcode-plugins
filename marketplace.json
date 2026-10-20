@@ -1,0 +1,35 @@
+{
+  "name": "zcode-document-reviewer",
+  "description": "ZCode 文档批注插件：在对话中或侧栏阅读 Markdown、TXT、PDF、DOCX，选区批注后交给主 Agent 修改原文件。",
+  "owner": {
+    "name": "ZhiXHY"
+  },
+  "plugins": [
+    {
+      "name": "document-reviewer",
+      "source": "./plugins/document-reviewer",
+      "version": "0.9.0",
+      "description": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX 文档，选中文字添加多条批注，并一次性发送给主 Agent 修改原文件。",
+      "category": "productivity",
+      "displayName": "Document Reviewer",
+      "displayName_i18n": {
+        "zh-CN": "文档批注"
+      },
+      "description_i18n": {
+        "zh-CN": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX，选中文字添加多条批注，一次性发送给主 Agent 修改原文件。"
+      },
+      "tags": [
+        "document",
+        "review",
+        "annotation",
+        "markdown",
+        "pdf",
+        "docx"
+      ],
+      "author": "ZhiXHY",
+      "authorUrl": "https://github.com/anqiwen",
+      "homepage": "https://github.com/anqiwen/zcode-document-reviewer",
+      "icon": "https://raw.githubusercontent.com/anqiwen/zcode-document-reviewer/main/plugins/document-reviewer/assets/icon.png"
+    }
+  ]
+}

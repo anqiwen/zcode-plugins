@@ -1,0 +1,10 @@
+node_modules/
+.mimosa/
+test-fixtures/
+dist/local-marketplace/
+dist/*.zip
+dist/.tmp-ui/
+dist/ui/
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,51 @@
+{
+  "name": "document-reviewer",
+  "version": "0.9.0",
+  "description": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX 文档，选中文字添加多条批注，并一次性发送给主 Agent 修改原文件。",
+  "description_i18n": {
+    "zh-CN": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX，选中文字添加多条批注，一次性发送给主 Agent 修改原文件。",
+    "en-US": "Read Markdown, TXT, PDF and DOCX documents inline or in a side panel, add multiple text annotations, and send them to the main Agent in one message."
+  },
+  "author": {
+    "name": "ZhiXHY"
+  },
+  "license": "MIT",
+  "keywords": [
+    "document",
+    "review",
+    "annotation",
+    "markdown",
+    "pdf",
+    "docx"
+  ],
+  "mcpServers": {
+    "reviewer": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/dist/server.mjs"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}",
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "reviewer",
+        "title": {
+          "zh-CN": "文档批注",
+          "en-US": "Document Reviewer"
+        },
+        "icon": "file-text",
+        "server": "reviewer",
+        "resourceUri": "ui://document-reviewer/panel.html",
+        "availability": "session"
+      }
+    ]
+  },
+  "skills": "skills"
+}

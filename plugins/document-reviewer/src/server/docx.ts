@@ -197,8 +197,17 @@ export async function docxToMarkdown(buffer: Buffer): Promise<DocxConversion> {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+  // Word's built-in styles and OMML math are expected; Mammoth reports both as noise.
+  const benignWarnings = [
+    /^An unrecognised element was ignored:/i,
+    /^An unrecognized element was ignored:/i,
+    /^Unrecognised (paragraph|run|table|numbering) style:/i,
+    /^Unrecognized (paragraph|run|table|numbering) style:/i,
+  ];
   return {
     markdown,
-    warnings: result.messages.map((message: { message: string }) => message.message),
+    warnings: result.messages
+      .map((message: { message: string }) => message.message)
+      .filter((message) => !benignWarnings.some((pattern) => pattern.test(message))),
   };
 }

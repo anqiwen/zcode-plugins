@@ -57504,9 +57504,15 @@ async function docxToMarkdown(buffer) {
   const lines = [];
   renderBlocks(body.childNodes, lines);
   const markdown = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const benignWarnings = [
+    /^An unrecognised element was ignored:/i,
+    /^An unrecognized element was ignored:/i,
+    /^Unrecognised (paragraph|run|table|numbering) style:/i,
+    /^Unrecognized (paragraph|run|table|numbering) style:/i
+  ];
   return {
     markdown,
-    warnings: result.messages.map((message) => message.message)
+    warnings: result.messages.map((message) => message.message).filter((message) => !benignWarnings.some((pattern) => pattern.test(message)))
   };
 }
 

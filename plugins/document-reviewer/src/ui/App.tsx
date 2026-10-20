@@ -1845,7 +1845,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
           ) : doc.kind === "text" ? (
             <>
               {doc.info.kind === "docx" || docWarnings.length > 0 ? (
-                <div className="doc-banner">
+                <div className={`doc-banner${docWarnings.length === 0 ? " external-banner" : ""}`}>
                   {doc.info.kind === "docx"
                     ? "DOCX 已转换为 Markdown 预览；批注按原文文本匹配定位，Agent 会在 Word 原文中核对。"
                     : ""}

@@ -1631,6 +1631,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
           </div>
           <textarea
             autoFocus
+            rows={1}
             className="inline-editor-input"
             placeholder={
               composer.intent === "delete"
@@ -2524,6 +2525,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
           </div>
           <textarea
             autoFocus
+            rows={1}
             className="inline-editor-input"
             value={inlineEditor.value}
             placeholder={

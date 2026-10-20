@@ -1,8 +1,6 @@
-# Document Reviewer for ZCode
+# ZCode Plugins
 
-在 ZCode 里打开 Markdown、TXT、PDF、DOCX 文档，选中文字添加批注，再把所有批注一次性交给主 Agent 修改原文件。
-
-这是一个 **ZCode 插件市场仓库**：根目录的 `marketplace.json` 声明插件，插件本体位于 `plugins/document-reviewer/`。
+anqiwen 的 ZCode 插件市场。添加一次市场，即可安装这里的所有插件。
 
 ## 安装
 
@@ -11,24 +9,21 @@
 3. 粘贴本仓库地址：
 
    ```text
-   https://github.com/anqiwen/zcode-document-reviewer
+   https://github.com/anqiwen/zcode-plugins
    ```
 
-4. 在 **个人 → zcode-document-reviewer** 中找到 **Document Reviewer**，点击 **安装**。
-5. 新建任务，输入「打开文档批注面板」或「审阅 docs/report.md」。
+4. 在 **个人 → zcode-plugins** 中选择插件，点击 **安装**。
 
-> 前置条件：本机需要安装 **Node.js 20 或更高版本**（插件的 MCP 服务通过 `node` 启动）。
+> 前置条件：这两个插件都通过 `node` 启动 MCP 服务，需要本机安装 **Node.js 20 或更高版本**。
 
-## 功能
+## 插件
 
-- 内联或侧栏打开文档，不离开对话
-- Markdown（渲染 / 源码）、TXT、PDF（文本层选区、缩放）、DOCX（Mammoth 预览）
-- 多批注、修改 / 删除 / 疑问三种意图、待定高亮与序号 pin
-- 跨文件批注总览、搜索、筛选、复制为 Markdown
-- 批注持久化、文件变更后的锚点重定位与发送前哈希校验
-- 发送后每 5 秒检查文件变化，自动提示刷新
+| 插件 | 版本 | 说明 |
+| --- | --- | --- |
+| [document-reviewer](plugins/document-reviewer/README.md) | 0.9.0 | 在对话中或侧栏阅读 Markdown、TXT、PDF、DOCX，选区批注后交给主 Agent 修改原文件 |
+| [opencode-go-usage](plugins/opencode-go-usage/README.md) | 0.1.1 | OpenCode Go 订阅额度面板：多账号、5 小时/每周/每月进度、重置倒计时、定时刷新与额度预警 |
 
-完整功能说明见 [plugins/document-reviewer/README.md](plugins/document-reviewer/README.md)。
+后续插件会加入同一个市场。
 
 ## 仓库结构
 
@@ -38,18 +33,31 @@
 ├── README.md
 ├── LICENSE
 └── plugins/
-    └── document-reviewer/
+    ├── document-reviewer/
+    │   ├── .zcode-plugin/plugin.json
+    │   ├── dist/                    # 构建产物（安装时直接使用，需提交）
+    │   ├── skills/document-reviewer/SKILL.md
+    │   ├── src/                     # TypeScript 源码
+    │   ├── scripts/                 # 构建 / 校验 / 本地市场打包
+    │   ├── assets/icon.png
+    │   ├── package.json
+    │   └── README.md
+    └── opencode-go-usage/
         ├── .zcode-plugin/plugin.json
-        ├── dist/                    # 构建产物（安装时直接使用，需提交）
-        ├── skills/document-reviewer/SKILL.md
+        ├── dist/                    # server / panel / cli / dpapi
         ├── src/                     # TypeScript 源码
         ├── scripts/                 # 构建 / 校验 / 本地市场打包
-        ├── assets/icon.png
         ├── package.json
         └── README.md
 ```
 
-## 开发
+## 新增插件
+
+1. 把插件目录放到 `plugins/<plugin-name>/`，确保包含 `.zcode-plugin/plugin.json`。
+2. 在根目录 `marketplace.json` 的 `plugins` 数组里增加一条，`source` 指向 `./plugins/<plugin-name>`。
+3. 版本号、描述和图标写在该条目里；插件自身的清单保持独立。
+
+## 开发 Document Reviewer
 
 ```bash
 cd plugins/document-reviewer

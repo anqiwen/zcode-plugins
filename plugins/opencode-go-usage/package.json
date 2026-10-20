@@ -1,0 +1,27 @@
+{
+  "name": "zcode-opencode-go-usage",
+  "version": "0.1.1",
+  "private": true,
+  "description": "ZCode UI plugin: OpenCode Go subscription usage panel",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
+    "mock": "node scripts/mock-host.mjs",
+    "ui-test": "node scripts/ui-test.mjs",
+    "stage": "node scripts/stage.mjs",
+    "validate": "node scripts/validate.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "undici": "8.12.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
+}

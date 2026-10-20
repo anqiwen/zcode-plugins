@@ -1,0 +1,48 @@
+{
+  "name": "opencode-go-usage",
+  "version": "0.1.1",
+  "description": "OpenCode Go 订阅额度面板：多账号、5 小时/每周/每月用量进度、重置倒计时、定时刷新与额度预警。API Key 仅保存在宿主加密凭据库。",
+  "description_i18n": {
+    "zh-CN": "OpenCode Go 订阅额度面板：多账号、5 小时/每周/每月用量进度、重置倒计时、定时刷新与额度预警。API Key 仅保存在宿主加密凭据库。",
+    "en-US": "OpenCode Go subscription usage panel: multiple accounts, 5-hour/weekly/monthly progress, reset countdowns, timed refresh and quota warnings. API keys stay in the host's encrypted credential store."
+  },
+  "author": {
+    "name": "ZhiXHY"
+  },
+  "license": "MIT",
+  "keywords": [
+    "opencode",
+    "opencode-go",
+    "usage",
+    "quota",
+    "subscription"
+  ],
+  "mcpServers": {
+    "usage": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/dist/server.mjs"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}",
+        "OPENCODE_GO_USAGE_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "usage",
+        "title": {
+          "zh-CN": "OpenCode Go 用量",
+          "en-US": "OpenCode Go Usage"
+        },
+        "server": "usage",
+        "resourceUri": "ui://opencode-go-usage/panel.html",
+        "availability": "session"
+      }
+    ]
+  }
+}

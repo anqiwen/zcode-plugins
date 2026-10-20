@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { renderAsync } from "docx-preview";
 import type { RenderAnnotation } from "./highlight.js";
 import { normalizeWhitespace } from "./text.js";
@@ -222,6 +222,26 @@ export const DocxViewer = React.memo(function DocxViewer({
   const [renderRevision, setRenderRevision] = useState(0);
   const [highlightRevision, setHighlightRevision] = useState(0);
 
+  const fitToWidth = useCallback(() => {
+    const body = bodyRef.current;
+    const root = containerRef.current;
+    if (!body || !root) return;
+    const wrapper = body.querySelector<HTMLElement>(".docx-wrapper");
+    if (!wrapper) return;
+    const pages = Array.from(wrapper.querySelectorAll<HTMLElement>(".docx"));
+    if (pages.length === 0) return;
+    let natural = Number(wrapper.dataset.naturalWidth);
+    if (!natural) {
+      natural = Math.max(...pages.map((page) => page.offsetWidth));
+      if (!natural) return;
+      wrapper.dataset.naturalWidth = String(natural);
+    }
+    const available = Math.max(280, root.clientWidth - 24);
+    const factor = Math.min(2, Math.max(0.35, available / natural));
+    const next = factor.toFixed(4);
+    if (wrapper.style.zoom !== next) wrapper.style.zoom = next;
+  }, [containerRef]);
+
   useEffect(() => {
     errorRef.current = onError;
   }, [onError]);
@@ -245,7 +265,10 @@ export const DocxViewer = React.memo(function DocxViewer({
       useBase64URL: true,
     })
       .then(() => {
-        if (!cancelled) setRenderRevision((value) => value + 1);
+        if (!cancelled) {
+          setRenderRevision((value) => value + 1);
+          requestAnimationFrame(() => fitToWidth());
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -265,6 +288,16 @@ export const DocxViewer = React.memo(function DocxViewer({
     applyHighlights(body, annotations, activeId);
     setHighlightRevision((value) => value + 1);
   }, [renderRevision, annotations, activeId]);
+
+  useEffect(() => {
+    if (renderRevision === 0) return;
+    fitToWidth();
+    const root = containerRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver(() => fitToWidth());
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [renderRevision, fitToWidth, containerRef]);
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = (event.target as HTMLElement | null)?.closest?.(

@@ -16,7 +16,7 @@
 | Markdown | 渲染视图（标题、列表、表格、代码块）与源码视图切换；两种视图均可精确选区 |
 | TXT | 按块渲染，长文档使用 `content-visibility` 分块优化 |
 | PDF | pdf.js 渲染、自适应宽度、缩放（40%–300%）、文本层选择、跨页选区自动拆分 |
-| DOCX | 原版样式（docx-preview）/ Markdown 双预览；批注按原文文本 + 前后文 + 出现序号定位 |
+| DOCX | 原版样式（docx-preview）/ Markdown 双预览；原版预览按文档区宽度自动缩放；批注按原文文本 + 前后文 + 出现序号定位 |
 | 批注 | 浮动「添加批注」、多行输入、`Ctrl+Enter` 保存、`Esc` 取消 |
 | 批注意图 | 修改 / 删除 / 疑问 三选一；疑问只要求 Agent 回答、不改文件，删除可直接留空意见 |
 | 批注管理 | 右侧列表、定位、编辑、单条删除、批量清空、删除撤销提示 |
@@ -323,6 +323,13 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 | 54 | 原版选区与批注 | 通过：选中「Response to Reviewers」可添加批注，锚点写入转换文本 |
 | 55 | 原版高亮 / pin / 就地编辑 | 通过：正文高亮、右侧序号 pin、点击高亮打开就地编辑均正常 |
 
+### 0.10.1 自适应宽度（2026-10-20）
+
+| # | 测试 | 结果 |
+| --- | --- | --- |
+| 56 | 文档区变窄/变宽自动缩放 | 通过：600px / 1100px 文档区下页面始终完整显示，无横向溢出 |
+| 57 | 收起侧栏后自动放大 | 通过：文档区 552→1090px，缩放 0.65×→1.31× |
+
 ---
 
 ## 已知限制
@@ -355,6 +362,8 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 - **Markdown**：Mammoth 的浏览器构建（`mammoth/mammoth.browser.js`，避免 Node `require` 与 ESM 打包冲突）生成 HTML，再用 `node-html-parser` 转成**干净 Markdown**（标题、段落、列表、表格、加粗/斜体、图片占位），作为批注锚点的规范文本。
 
 两种模式共用同一份转换文本作为锚点：原版模式中的选区和已有批注高亮会通过 quote/上下文回找到这份文本；Agent 始终修改 Word 原文件。
+
+原版预览会按文档区宽度自动缩放（0.35–2.0×）：侧栏展开/收起或窗口变宽时，由 `ResizeObserver` 重新计算，页面始终完整显示，不需要手动缩放。
 
 后续可改进：
 

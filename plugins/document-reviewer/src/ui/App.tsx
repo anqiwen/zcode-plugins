@@ -1584,85 +1584,164 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
     : null;
 
   const composerElement = composer ? (
-    <div className="composer-backdrop" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) setComposer(null);
-    }}>
-      <div className="composer">
-        <div className="composer-head">
-          <span>{composer.mode === "edit" ? "编辑批注" : "添加批注"}</span>
-          <button className="icon-btn" onClick={() => setComposer(null)} title="取消">
-            <HighlightIcon name="x" />
-          </button>
-        </div>
-        {composer.mode === "create" && composer.selection ? (
-          <div className="composer-quote">
-            <div className="composer-quote-label">
-              选中原文{selectionLine ? ` · ${selectionLine}` : ""}
-            </div>
-            <div className="composer-quote-text">{composer.selection.quote}</div>
-          </div>
-        ) : null}
-        <div className="intent-chips" role="group" aria-label="批注意图">
-          {INTENT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`intent-chip intent-${option.value}${
-                composer.intent === option.value ? " is-on" : ""
-              }`}
-              title={option.hint}
-              aria-pressed={composer.intent === option.value}
-              onClick={() =>
-                setComposer((current) =>
-                  current ? { ...current, intent: option.value } : current,
-                )
-              }
-            >
-              {option.label}
-            </button>
-          ))}
-          <span className="hint">
-            {INTENT_OPTIONS.find((option) => option.value === composer.intent)?.hint}
-          </span>
-        </div>
-        <textarea
-          autoFocus
-          className="composer-input"
-          placeholder={
-            composer.intent === "delete"
-              ? "可补充删除原因（可留空）；保存后 Agent 会删除选中内容。"
-              : composer.intent === "ask"
-                ? "写下你的疑问，例如：这里的样本量依据是什么？"
-                : "写下修改意见，例如：这段结论与第 3 节的数据不一致，请给出解释或修改。"
-          }
-          value={composer.value}
-          onChange={(event) =>
-            setComposer((current) => (current ? { ...current, value: event.target.value } : current))
-          }
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault();
-              saveComposer();
-            }
+    composer.mode === "create" && composer.selection ? (
+      <div
+        className="composer-popover-backdrop"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setComposer(null);
+        }}
+      >
+        <div
+          className="composer-popover"
+          style={{
+            top: Math.max(8, Math.min(window.innerHeight - 240, composer.selection.top + 52)),
+            left: Math.max(8, Math.min(window.innerWidth - 352, composer.selection.left - 110)),
           }}
-        />
-        <div className="composer-foot">
-          <span className="hint">Ctrl+Enter 保存 · Esc 取消</span>
-          <div className="composer-actions">
-            <button className="btn" onClick={() => setComposer(null)}>
-              取消
-            </button>
-            <button
-              className="btn primary"
-              disabled={!composer.value.trim() && composer.intent !== "delete"}
-              onClick={saveComposer}
-            >
-              {composer.mode === "edit" ? "保存修改" : "保存"}
-            </button>
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div
+            className="composer-popover-quote"
+            title={
+              selectionLine
+                ? `选中原文 · ${selectionLine}\n${composer.selection.quote}`
+                : composer.selection.quote
+            }
+          >
+            {composer.selection.quote}
+          </div>
+          <div className="inline-editor-intents" role="group" aria-label="批注意图">
+            {INTENT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`intent-chip intent-${option.value}${
+                  composer.intent === option.value ? " is-on" : ""
+                }`}
+                title={option.hint}
+                aria-pressed={composer.intent === option.value}
+                onClick={() =>
+                  setComposer((current) =>
+                    current ? { ...current, intent: option.value } : current,
+                  )
+                }
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            autoFocus
+            className="inline-editor-input"
+            placeholder={
+              composer.intent === "delete"
+                ? "可补充删除原因（可留空）"
+                : composer.intent === "ask"
+                  ? "描述更改或提出问题"
+                  : "描述修改意见"
+            }
+            value={composer.value}
+            onChange={(event) =>
+              setComposer((current) =>
+                current ? { ...current, value: event.target.value } : current,
+              )
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                saveComposer();
+              }
+            }}
+          />
+          <div className="inline-editor-foot">
+            <span className="inline-editor-pos">Ctrl+Enter 保存 · Esc 取消</span>
+            <div className="inline-editor-actions">
+              <button className="btn small" onClick={() => setComposer(null)}>
+                取消
+              </button>
+              <button
+                className="btn primary small"
+                disabled={!composer.value.trim() && composer.intent !== "delete"}
+                onClick={saveComposer}
+              >
+                保存
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    ) : (
+      <div className="composer-backdrop" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setComposer(null);
+      }}>
+        <div className="composer">
+          <div className="composer-head">
+            <span>编辑批注</span>
+            <button className="icon-btn" onClick={() => setComposer(null)} title="取消">
+              <HighlightIcon name="x" />
+            </button>
+          </div>
+          <div className="intent-chips" role="group" aria-label="批注意图">
+            {INTENT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`intent-chip intent-${option.value}${
+                  composer.intent === option.value ? " is-on" : ""
+                }`}
+                title={option.hint}
+                aria-pressed={composer.intent === option.value}
+                onClick={() =>
+                  setComposer((current) =>
+                    current ? { ...current, intent: option.value } : current,
+                  )
+                }
+              >
+                {option.label}
+              </button>
+            ))}
+            <span className="hint">
+              {INTENT_OPTIONS.find((option) => option.value === composer.intent)?.hint}
+            </span>
+          </div>
+          <textarea
+            autoFocus
+            className="composer-input"
+            placeholder={
+              composer.intent === "delete"
+                ? "可补充删除原因（可留空）；保存后 Agent 会删除选中内容。"
+                : composer.intent === "ask"
+                  ? "写下你的疑问，例如：这里的样本量依据是什么？"
+                  : "写下修改意见，例如：这段结论与第 3 节的数据不一致，请给出解释或修改。"
+            }
+            value={composer.value}
+            onChange={(event) =>
+              setComposer((current) => (current ? { ...current, value: event.target.value } : current))
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                saveComposer();
+              }
+            }}
+          />
+          <div className="composer-foot">
+            <span className="hint">Ctrl+Enter 保存 · Esc 取消</span>
+            <div className="composer-actions">
+              <button className="btn" onClick={() => setComposer(null)}>
+                取消
+              </button>
+              <button
+                className="btn primary"
+                disabled={!composer.value.trim() && composer.intent !== "delete"}
+                onClick={saveComposer}
+              >
+                保存修改
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   ) : null;
 
   return (

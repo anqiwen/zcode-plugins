@@ -859,6 +859,37 @@ textarea {
   overflow: hidden;
   animation: pop 0.15s ease-out;
 }
+.composer-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: transparent;
+}
+.composer-popover {
+  position: fixed;
+  z-index: 61;
+  width: min(340px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  animation: pop 0.12s ease-out;
+}
+.composer-popover-quote {
+  min-width: 0;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .composer-head,
 .modal-head {
   display: flex;

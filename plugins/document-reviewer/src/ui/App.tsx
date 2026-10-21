@@ -341,6 +341,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
   const [pathLoading, setPathLoading] = useState(false);
   const [browseLoading, setBrowseLoading] = useState(false);
   const [pdfZoom, setPdfZoom] = useState(1);
+  const [docxZoom, setDocxZoom] = useState<number | null>(null);
   const [pdfPageCount, setPdfPageCount] = useState(0);
   const [displayMode, setDisplayMode] = useState<"inline" | "fullscreen" | "pip">(
     bridge.displayMode(),
@@ -591,6 +592,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
         setViewMode("rendered");
         setDocxView("original");
         setPdfZoom(1);
+        setDocxZoom(null);
         setPdfPageCount(0);
         setLastDocPath(info.path);
         setAnnotations((current) =>
@@ -1808,6 +1810,42 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                   </button>
                 </div>
               ) : null}
+              {doc.info.kind === "docx" ? (
+                <div className="zoom-controls">
+                  <button
+                    className={`btn small${docxZoom === null ? " primary" : ""}`}
+                    onClick={() => setDocxZoom(null)}
+                    title="适应文档区宽度"
+                  >
+                    适应
+                  </button>
+                  <button
+                    className="icon-btn"
+                    onClick={() =>
+                      setDocxZoom((value) =>
+                        Math.max(0.85, Number(((value ?? 1) - 0.1).toFixed(2))),
+                      )
+                    }
+                    title="缩小"
+                  >
+                    <HighlightIcon name="minus" />
+                  </button>
+                  <span className="zoom-label">
+                    {docxZoom === null ? "自动" : `${Math.round(docxZoom * 100)}%`}
+                  </span>
+                  <button
+                    className="icon-btn"
+                    onClick={() =>
+                      setDocxZoom((value) =>
+                        Math.min(1.5, Number(((value ?? 1) + 0.1).toFixed(2))),
+                      )
+                    }
+                    title="放大"
+                  >
+                    <HighlightIcon name="plus" />
+                  </button>
+                </div>
+              ) : null}
               {doc.info.kind === "pdf" ? (
                 <div className="zoom-controls">
                   <button
@@ -2007,6 +2045,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                     containerRef={textRef}
                     numberById={numberById}
                     revision={docRevision}
+                    zoom={docxZoom}
                     onError={setDocError}
                   />
                 </div>

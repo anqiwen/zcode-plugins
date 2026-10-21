@@ -12,6 +12,7 @@ export interface DocxViewerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   numberById: Map<string, number>;
   revision?: string;
+  zoom?: number | null;
   onError?: (message: string) => void;
 }
 
@@ -214,6 +215,7 @@ export const DocxViewer = React.memo(function DocxViewer({
   containerRef,
   numberById,
   revision,
+  zoom,
   onError,
 }: DocxViewerProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -237,10 +239,13 @@ export const DocxViewer = React.memo(function DocxViewer({
       wrapper.dataset.naturalWidth = String(natural);
     }
     const available = Math.max(280, root.clientWidth - 24);
-    const factor = Math.min(2, Math.max(0.35, available / natural));
+    const factor =
+      typeof zoom === "number" && Number.isFinite(zoom)
+        ? Math.min(2, Math.max(0.35, zoom))
+        : Math.min(2, Math.max(0.35, available / natural));
     const next = factor.toFixed(4);
     if (wrapper.style.zoom !== next) wrapper.style.zoom = next;
-  }, [containerRef]);
+  }, [containerRef, zoom]);
 
   useEffect(() => {
     errorRef.current = onError;

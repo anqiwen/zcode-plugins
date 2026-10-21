@@ -1,6 +1,6 @@
 {
   "name": "document-reviewer",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX 文档，选中文字添加多条批注，并一次性发送给主 Agent 修改原文件。",
   "description_i18n": {
     "zh-CN": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX，选中文字添加多条批注，一次性发送给主 Agent 修改原文件。",

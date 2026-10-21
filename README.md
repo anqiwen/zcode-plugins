@@ -20,7 +20,7 @@ anqiwen 的 ZCode 插件市场。添加一次市场，即可安装这里的所�
 
 | 插件 | 版本 | 说明 |
 | --- | --- | --- |
-| [document-reviewer](plugins/document-reviewer/README.md) | 0.13.0 | 阅读 Markdown、TXT、PDF、DOCX，DOCX 支持原版样式 / Markdown 双预览，选区批注后交给主 Agent 修改原文件 |
+| [document-reviewer](plugins/document-reviewer/README.md) | 0.13.1 | 阅读 Markdown、TXT、PDF、DOCX，DOCX 支持原版样式 / Markdown 双预览，选区批注后交给主 Agent 修改原文件 |
 | [opencode-go-usage](plugins/opencode-go-usage/README.md) | 0.1.1 | OpenCode Go 订阅额度面板：多账号、5 小时/每周/每月进度、重置倒计时、定时刷新与额度预警 |
 
 后续插件会加入同一个市场。

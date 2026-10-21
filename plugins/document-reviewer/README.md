@@ -432,3 +432,9 @@ C:\Users\<你>\.zcode\cli\plugins\data\document-reviewer@document-reviewer-local
 | `esbuild` | 0.25.12 | 打包 |
 
 PDF 的 CMaps、标准字体与 wasm 随包分发，运行时不联网。
+
+---
+
+## 参考与致谢
+
+- [墨批 InkMark](https://gitee.com/growlr/ink-mark) — 借鉴了 `/review` 命令入口、85%–150% 缩放和 Codex 风格批注的交互思路；未复制其代码（该仓库未声明 LICENSE）。

@@ -1658,15 +1658,14 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
           <div className="inline-editor-foot">
             <span className="inline-editor-pos">Ctrl+Enter 保存 · Esc 取消</span>
             <div className="inline-editor-actions">
-              <button className="btn small" onClick={() => setComposer(null)}>
-                取消
-              </button>
               <button
-                className="btn primary small"
+                className="check-btn"
+                title="保存 (Ctrl+Enter)"
+                aria-label="保存"
                 disabled={!composer.value.trim() && composer.intent !== "delete"}
                 onClick={saveComposer}
               >
-                保存
+                <HighlightIcon name="check" size={16} />
               </button>
             </div>
           </div>
@@ -2150,9 +2149,11 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                     <span className="annotation-number">
                       #{numberById.get(annotation.id) ?? "·"}
                     </span>
-                    <span className="annotation-file" title={annotation.docPath}>
-                      {compactPath(annotation.docPath, 32)}
-                    </span>
+                    {doc && annotation.docPath === doc.info.path ? null : (
+                      <span className="annotation-file" title={annotation.docPath}>
+                        {compactPath(annotation.docPath, 32)}
+                      </span>
+                    )}
                     <span className={`tag intent-${annotationIntent(annotation)}`}>
                       {intentLabel(annotationIntent(annotation))}
                     </span>
@@ -2290,8 +2291,9 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             className="btn"
             onClick={() => setPreviewOpen(true)}
             disabled={drafts.length === 0 || sending}
+            title="查看将发送给主 Agent 的内容"
           >
-            <HighlightIcon name="eye" size={15} /> 查看合并内容
+            <HighlightIcon name="eye" size={15} /> 预览
           </button>
           <button
             className="btn primary"
@@ -2300,7 +2302,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             title={bridge.capabilities.message ? "发送给主 Agent" : "填入对话上下文"}
           >
             {sending ? <span className="spinner small" /> : <HighlightIcon name="send" size={15} />}
-            {sending ? "发送中…" : "批量发送"}
+            {sending ? "发送中…" : "发送"}
           </button>
         </div>
       </footer>
@@ -2600,15 +2602,14 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             </button>
             <span className="inline-editor-pos">{positionLabel(inlineAnnotation)}</span>
             <div className="inline-editor-actions">
-              <button className="btn small" onClick={() => setInlineEditor(null)}>
-                取消
-              </button>
               <button
-                className="btn primary small"
+                className="check-btn"
+                title="保存 (Ctrl+Enter)"
+                aria-label="保存"
                 disabled={!inlineEditor.value.trim() && inlineEditor.intent !== "delete"}
                 onClick={saveInlineEditor}
               >
-                保存
+                <HighlightIcon name="check" size={16} />
               </button>
             </div>
           </div>

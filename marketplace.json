@@ -8,7 +8,7 @@
     {
       "name": "document-reviewer",
       "source": "./plugins/document-reviewer",
-      "version": "0.12.0",
+      "version": "0.13.0",
       "description": "在对话中或侧栏阅读 Markdown、TXT、PDF 与 DOCX 文档，DOCX 支持原版样式 / Markdown 双预览，选中文字添加多条批注并一次性发送给主 Agent 修改原文件。",
       "category": "productivity",
       "displayName": "Document Reviewer",

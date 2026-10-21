@@ -235,6 +235,27 @@ textarea {
   padding: 0 10px;
   font-size: 12px;
 }
+.check-btn {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.check-btn:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+.check-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .icon-btn {
   width: 28px;
   height: 28px;
@@ -930,10 +951,10 @@ textarea {
 }
 .intent-chip {
   padding: 3px 11px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted-2);
   font-size: 12px;
   line-height: 1.5;
   cursor: pointer;
@@ -1358,8 +1379,31 @@ textarea {
 }
 .bottombar-actions {
   display: flex;
-  gap: 8px;
+  gap: 3px;
   flex: none;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+}
+.bottombar-actions .btn {
+  height: 28px;
+  padding: 0 10px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+}
+.bottombar-actions .btn:hover:not(:disabled) {
+  background: var(--panel-3);
+}
+.bottombar-actions .btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.bottombar-actions .btn.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 /* ------------------------------------------------------- annotation nav */
@@ -1484,6 +1528,9 @@ textarea {
 .inline-editor-intents .intent-chip {
   padding: 1px 8px;
   font-size: 10.5px;
+}
+.inline-editor-intents .intent-chip:not(.is-on) {
+  opacity: 0.78;
 }
 .inline-editor-input {
   display: block;

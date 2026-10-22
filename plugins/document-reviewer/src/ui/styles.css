@@ -837,6 +837,32 @@ textarea {
   color: #111;
   margin: 0 auto;
   box-shadow: 0 3px 24px rgba(0, 0, 0, 0.22);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.docx-view.tone-sepia .docx-pages .docx {
+  background: #fbf7ec;
+  color: #2b251e;
+}
+.docx-view.tone-sepia .docx-pages .docx p,
+.docx-view.tone-sepia .docx-pages .docx span,
+.docx-view.tone-sepia .docx-pages .docx td,
+.docx-view.tone-sepia .docx-pages .docx th,
+.docx-view.tone-sepia .docx-pages .docx li {
+  color: #2b251e;
+}
+
+.docx-view.tone-dark .docx-pages .docx {
+  background: #232428;
+  color: #e2e4ea;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.45);
+}
+.docx-view.tone-dark .docx-pages .docx p,
+.docx-view.tone-dark .docx-pages .docx span,
+.docx-view.tone-dark .docx-pages .docx td,
+.docx-view.tone-dark .docx-pages .docx th,
+.docx-view.tone-dark .docx-pages .docx li {
+  color: #e2e4ea;
 }
 
 .docx-pages .docx p,

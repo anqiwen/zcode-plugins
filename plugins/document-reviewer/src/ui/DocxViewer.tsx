@@ -13,6 +13,7 @@ export interface DocxViewerProps {
   numberById: Map<string, number>;
   revision?: string;
   zoom?: number | null;
+  paperTone?: "white" | "sepia" | "dark";
   onError?: (message: string) => void;
 }
 
@@ -216,6 +217,7 @@ export const DocxViewer = React.memo(function DocxViewer({
   numberById,
   revision,
   zoom,
+  paperTone = "white",
   onError,
 }: DocxViewerProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -315,7 +317,7 @@ export const DocxViewer = React.memo(function DocxViewer({
   };
 
   return (
-    <div className="docx-view" ref={containerRef} onClick={handleClick}>
+    <div className={`docx-view tone-${paperTone}`} ref={containerRef} onClick={handleClick}>
       <div className="docx-pages" ref={bodyRef} />
       <div className="docx-style" ref={styleRef} />
       <PinOverlay

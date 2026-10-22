@@ -140,6 +140,38 @@ function sortAnnotations(list: Annotation[]): Annotation[] {
   });
 }
 
+function formatAnnotationReport(list: Annotation[], title = "文档审阅批注清单"): string {
+  const dateStr = new Date().toLocaleString("zh-CN", { hour12: false });
+  const sorted = sortAnnotations(list);
+  const fileCount = new Set(sorted.map((a) => a.docPath)).size;
+  const lines: string[] = [
+    `# ${title}`,
+    "",
+    `> 导出时间：${dateStr} · 共 ${sorted.length} 条批注 · 涉及 ${fileCount} 个文件`,
+    "",
+  ];
+  const byFile = new Map<string, Annotation[]>();
+  for (const annotation of sorted) {
+    const group = byFile.get(annotation.docPath) ?? [];
+    group.push(annotation);
+    byFile.set(annotation.docPath, group);
+  }
+  for (const [file, items] of byFile) {
+    lines.push(`### 📄 \`${file}\` (${items.length} 条)`);
+    lines.push("");
+    items.forEach((item, index) => {
+      const intentName = intentLabel(annotationIntent(item));
+      lines.push(`- **#${index + 1} [${intentName}]**`);
+      if (item.quote) {
+        lines.push(`  - **原文**：“${item.quote.replace(/\n+/g, " ")}”`);
+      }
+      lines.push(`  - **意见**：${item.comment.replace(/\n+/g, " ")}`);
+    });
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 function kindLabel(kind: string | null): string {
   switch (kind) {
     case "md":
@@ -298,6 +330,15 @@ function HighlightIcon({ name, size = 16 }: { name: string; size?: number }) {
           <path d="m6 9 6 6 6-6" />
         </svg>
       );
+    case "fold":
+      return (
+        <svg {...common}>
+          <path d="M4 6h16" />
+          <path d="M4 18h16" />
+          <path d="m9 11 3-3 3 3" />
+          <path d="m9 13 3 3 3-3" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -376,6 +417,17 @@ function buildFileTree(files: FileEntry[]): FileTreeNode[] {
   };
   sort(root.children);
   return root.children;
+}
+
+function collectFolderPaths(nodes: FileTreeNode[]): string[] {
+  const paths: string[] = [];
+  for (const node of nodes) {
+    if (node.kind === "folder") {
+      paths.push(node.path);
+      paths.push(...collectFolderPaths(node.children));
+    }
+  }
+  return paths;
 }
 
 function FileTree({
@@ -485,6 +537,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
   const [browseLoading, setBrowseLoading] = useState(false);
   const [pdfZoom, setPdfZoom] = useState(1);
   const [docxZoom, setDocxZoom] = useState<number | null>(null);
+  const [paperTone, setPaperTone] = useState<"white" | "sepia" | "dark">("white");
   const [pdfPageCount, setPdfPageCount] = useState(0);
   const [displayMode, setDisplayMode] = useState<"inline" | "fullscreen" | "pip">(
     bridge.displayMode(),
@@ -1430,6 +1483,34 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
     }
   };
 
+  const toggleAllFolders = () => {
+    if (expandedFolders.size > 0) {
+      setExpandedFolders(new Set());
+      showToast({ kind: "info", text: "已折叠全部目录" }, 1600);
+    } else {
+      setExpandedFolders(new Set(collectFolderPaths(fileTree)));
+      showToast({ kind: "info", text: "已展开全部目录" }, 1600);
+    }
+  };
+
+  const exportAnnotationsMarkdown = async (targets?: Annotation[]) => {
+    const list = targets ?? (drafts.length > 0 ? drafts : annotations);
+    if (list.length === 0) {
+      showToast({ kind: "info", text: "暂无批注可导出" });
+      return;
+    }
+    const report = formatAnnotationReport(list);
+    try {
+      await navigator.clipboard.writeText(report);
+      showToast(
+        { kind: "success", text: `已复制 ${list.length} 条批注为 Markdown 清单` },
+        2400,
+      );
+    } catch {
+      showToast({ kind: "warn", text: "剪贴板不可用，请在全部批注弹窗中复制" });
+    }
+  };
+
   // ----- rendering helpers --------------------------------------------------
   const refreshFiles = async () => {
     setFilesLoading(true);
@@ -2026,6 +2107,31 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                   </button>
                 </div>
               ) : null}
+              {doc.info.kind === "docx" && docxView === "original" ? (
+                <div className="segmented">
+                  <button
+                    className={paperTone === "white" ? "active" : ""}
+                    onClick={() => setPaperTone("white")}
+                    title="纸张原白"
+                  >
+                    原白
+                  </button>
+                  <button
+                    className={paperTone === "sepia" ? "active" : ""}
+                    onClick={() => setPaperTone("sepia")}
+                    title="护眼暖色纸张"
+                  >
+                    护眼
+                  </button>
+                  <button
+                    className={paperTone === "dark" ? "active" : ""}
+                    onClick={() => setPaperTone("dark")}
+                    title="暗色纸张模式"
+                  >
+                    暗色
+                  </button>
+                </div>
+              ) : null}
               {doc.info.kind === "pdf" ? (
                 <div className="zoom-controls">
                   <button
@@ -2082,6 +2188,13 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             <div className="sidebar-head">
               <span>工作区文件</span>
               <div className="sidebar-head-actions">
+                <button
+                  className="icon-btn"
+                  title={expandedFolders.size > 0 ? "全部折叠目录" : "全部展开目录"}
+                  onClick={toggleAllFolders}
+                >
+                  <HighlightIcon name="fold" />
+                </button>
                 <button
                   className="icon-btn"
                   title="打开工作区外文件"
@@ -2242,6 +2355,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                     numberById={numberById}
                     revision={docRevision}
                     zoom={docxZoom}
+                    paperTone={paperTone}
                     onError={setDocError}
                   />
                 </div>
@@ -2313,6 +2427,18 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
                 批注列表 <span className="count-pill">{drafts.length}</span>
               </span>
               <div className="sidebar-head-actions">
+                <button
+                  className="icon-btn"
+                  onClick={() =>
+                    void exportAnnotationsMarkdown(
+                      showSent ? sortAnnotations([...drafts, ...sent]) : drafts,
+                    )
+                  }
+                  disabled={drafts.length === 0 && (!showSent || sent.length === 0)}
+                  title="复制当前显示的批注清单为 Markdown"
+                >
+                  <HighlightIcon name="copy" size={13} />
+                </button>
                 <button className="text-btn" onClick={openOverview}>
                   <HighlightIcon name="list" size={13} /> 总览
                 </button>
@@ -2486,11 +2612,19 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
           </button>
           <button
             className="btn"
+            onClick={() => void exportAnnotationsMarkdown(drafts)}
+            disabled={drafts.length === 0 || sending}
+            title="复制批注清单为 Markdown（用于总结汇报或外部存档）"
+          >
+            <HighlightIcon name="copy" size={14} /> 导出
+          </button>
+          <button
+            className="btn"
             onClick={() => setPreviewOpen(true)}
             disabled={drafts.length === 0 || sending}
             title="查看将发送给主 Agent 的内容"
           >
-            <HighlightIcon name="eye" size={15} /> 预览
+            <HighlightIcon name="eye" size={14} /> 预览
           </button>
           <button
             className="btn primary"
@@ -2498,7 +2632,7 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             disabled={drafts.length === 0 || sending}
             title={bridge.capabilities.message ? "发送给主 Agent" : "填入对话上下文"}
           >
-            {sending ? <span className="spinner small" /> : <HighlightIcon name="send" size={15} />}
+            {sending ? <span className="spinner small" /> : <HighlightIcon name="send" size={14} />}
             {sending ? "发送中…" : "发送"}
           </button>
         </div>

@@ -303,6 +303,147 @@ function HighlightIcon({ name, size = 16 }: { name: string; size?: number }) {
   }
 }
 
+interface FileTreeFileNode {
+  kind: "file";
+  name: string;
+  path: string;
+  depth: number;
+  file: FileEntry;
+}
+
+interface FileTreeFolderNode {
+  kind: "folder";
+  name: string;
+  path: string;
+  depth: number;
+  fileCount: number;
+  children: FileTreeNode[];
+}
+
+type FileTreeNode = FileTreeFileNode | FileTreeFolderNode;
+
+function buildFileTree(files: FileEntry[]): FileTreeNode[] {
+  const root: FileTreeFolderNode = {
+    kind: "folder",
+    name: "",
+    path: "",
+    depth: -1,
+    fileCount: 0,
+    children: [],
+  };
+  const folders = new Map<string, FileTreeFolderNode>();
+
+  for (const file of files) {
+    const parts = file.path.split("/").filter(Boolean);
+    if (parts.length === 0) continue;
+    let parent = root;
+    let currentPath = "";
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+      let folder = folders.get(currentPath);
+      if (!folder) {
+        folder = {
+          kind: "folder",
+          name: parts[i],
+          path: currentPath,
+          depth: i,
+          fileCount: 0,
+          children: [],
+        };
+        folders.set(currentPath, folder);
+        parent.children.push(folder);
+      }
+      folder.fileCount += 1;
+      parent = folder;
+    }
+    parent.children.push({
+      kind: "file",
+      name: parts[parts.length - 1],
+      path: file.path,
+      depth: parts.length - 1,
+      file,
+    });
+  }
+
+  const sort = (nodes: FileTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+      return a.name.localeCompare(b.name, "zh-CN");
+    });
+    for (const node of nodes) {
+      if (node.kind === "folder") sort(node.children);
+    }
+  };
+  sort(root.children);
+  return root.children;
+}
+
+function FileTree({
+  nodes,
+  activePath,
+  expanded,
+  onToggle,
+  onOpen,
+}: {
+  nodes: FileTreeNode[];
+  activePath: string | null;
+  expanded: Set<string>;
+  onToggle: (path: string) => void;
+  onOpen: (path: string) => void;
+}) {
+  return (
+    <>
+      {nodes.map((node) => {
+        if (node.kind === "folder") {
+          const open = expanded.has(node.path);
+          return (
+            <div key={`folder:${node.path}`}>
+              <button
+                type="button"
+                className="tree-folder"
+                style={{ paddingLeft: 7 + node.depth * 14 }}
+                onClick={() => onToggle(node.path)}
+                aria-expanded={open}
+              >
+                <span className={`tree-chevron${open ? " open" : ""}`}>
+                  <HighlightIcon name="chevron-down" size={12} />
+                </span>
+                <HighlightIcon name="folder" size={14} />
+                <span className="tree-name">{node.name}</span>
+                <span className="tree-count">{node.fileCount}</span>
+              </button>
+              {open ? (
+                <FileTree
+                  nodes={node.children}
+                  activePath={activePath}
+                  expanded={expanded}
+                  onToggle={onToggle}
+                  onOpen={onOpen}
+                />
+              ) : null}
+            </div>
+          );
+        }
+        return (
+          <button
+            key={`file:${node.path}`}
+            type="button"
+            className={`tree-file${activePath === node.path ? " active" : ""}`}
+            style={{ paddingLeft: 25 + node.depth * 14 }}
+            title={node.path}
+            onClick={() => onOpen(node.path)}
+          >
+            <span className={`file-badge kind-${node.file.kind ?? "?"}`}>
+              {kindLabel(node.file.kind)}
+            </span>
+            <span className="file-name">{node.name}</span>
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
 export interface ReviewerAppProps {
   bridge: Bridge;
   pendingDocument: DocumentInfo | null;
@@ -313,6 +454,8 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
   const [fileFilter, setFileFilter] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const treeInitialized = useRef(false);
   const [doc, setDoc] = useState<OpenDoc | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"rendered" | "source">("rendered");
@@ -1307,6 +1450,44 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
     return files.filter((file) => file.path.toLowerCase().includes(keyword));
   }, [files, fileFilter]);
 
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
+
+  const toggleFolder = useCallback((path: string) => {
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (treeInitialized.current || files.length === 0) return;
+    const topFolders = new Set<string>();
+    for (const file of files) {
+      const parts = file.path.split("/").filter(Boolean);
+      if (parts.length > 1) topFolders.add(parts[0]);
+    }
+    setExpandedFolders(topFolders);
+    treeInitialized.current = true;
+  }, [files]);
+
+  useEffect(() => {
+    const path = doc?.info.path;
+    if (!path || doc?.info.external) return;
+    const parts = path.split("/").filter(Boolean);
+    if (parts.length <= 1) return;
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+      let folder = "";
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        folder = folder ? `${folder}/${parts[i]}` : parts[i];
+        next.add(folder);
+      }
+      return next;
+    });
+  }, [doc?.info.path, doc?.info.external]);
+
   const currentDocDrafts = useMemo(
     () => drafts.filter((annotation) => annotation.docPath === doc?.info.path),
     [drafts, doc?.info.path],
@@ -1924,27 +2105,43 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
             <div className="file-list">
               {filesLoading ? (
                 <div className="empty-hint">正在读取…</div>
-              ) : filteredFiles.length === 0 ? (
+              ) : files.length === 0 ? (
                 <div className="empty-hint">
                   工作区中没有可批注的文档
                   <br />
                   <span className="tiny">支持 .md / .txt / .pdf / .docx</span>
                 </div>
+              ) : fileFilter.trim() ? (
+                filteredFiles.length === 0 ? (
+                  <div className="empty-hint">
+                    没有匹配的文件
+                    <br />
+                    <span className="tiny">清空搜索可回到文件夹目录</span>
+                  </div>
+                ) : (
+                  filteredFiles.map((file) => (
+                    <button
+                      key={file.path}
+                      className={`file-item${doc?.info.path === file.path ? " active" : ""}`}
+                      title={file.path}
+                      onClick={() => void openDocument(file.path)}
+                    >
+                      <span className={`file-badge kind-${file.kind ?? "?"}`}>
+                        {kindLabel(file.kind)}
+                      </span>
+                      <span className="file-name">{file.name}</span>
+                      <span className="file-dir">{file.path.includes("/") ? compactPath(file.path, 34) : ""}</span>
+                    </button>
+                  ))
+                )
               ) : (
-                filteredFiles.map((file) => (
-                  <button
-                    key={file.path}
-                    className={`file-item${doc?.info.path === file.path ? " active" : ""}`}
-                    title={file.path}
-                    onClick={() => void openDocument(file.path)}
-                  >
-                    <span className={`file-badge kind-${file.kind ?? "?"}`}>
-                      {kindLabel(file.kind)}
-                    </span>
-                    <span className="file-name">{file.name}</span>
-                    <span className="file-dir">{file.path.includes("/") ? compactPath(file.path, 34) : ""}</span>
-                  </button>
-                ))
+                <FileTree
+                  nodes={fileTree}
+                  activePath={doc?.info.path ?? null}
+                  expanded={expandedFolders}
+                  onToggle={toggleFolder}
+                  onOpen={(path) => void openDocument(path)}
+                />
               )}
             </div>
             <div className="sidebar-foot">

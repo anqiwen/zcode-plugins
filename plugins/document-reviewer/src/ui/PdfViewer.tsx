@@ -632,13 +632,14 @@ export function PdfViewer({
     const timer = { id: 0 as number };
     const schedule = () => {
       window.clearTimeout(timer.id);
-      timer.id = window.setTimeout(handle, 120);
+      timer.id = window.setTimeout(handle, 25);
     };
-    element.addEventListener("mouseup", schedule);
-    element.addEventListener("keyup", schedule);
+
+    document.addEventListener("mouseup", schedule);
+    document.addEventListener("keyup", schedule);
     return () => {
-      element.removeEventListener("mouseup", schedule);
-      element.removeEventListener("keyup", schedule);
+      document.removeEventListener("mouseup", schedule);
+      document.removeEventListener("keyup", schedule);
       window.clearTimeout(timer.id);
     };
   }, [containerRef, onSelection, doc]);

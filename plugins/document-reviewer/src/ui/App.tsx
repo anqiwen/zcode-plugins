@@ -830,31 +830,56 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
       return;
     }
     const domSelection = window.getSelection();
-    const rect = domSelection && domSelection.rangeCount > 0
-      ? domSelection.getRangeAt(0).getBoundingClientRect()
-      : null;
+    let rect: DOMRect | null = null;
+    if (domSelection && domSelection.rangeCount > 0) {
+      const range = domSelection.getRangeAt(0);
+      const clientRects = range.getClientRects();
+      rect = clientRects.length > 0 ? clientRects[0] : range.getBoundingClientRect();
+    }
+    let btnTop = 80;
+    let btnLeft = 80;
+    if (rect) {
+      if (rect.top >= 52) {
+        btnTop = rect.top - 40;
+      } else {
+        btnTop = Math.min(window.innerHeight - 50, rect.bottom + 8);
+      }
+      btnLeft = Math.max(12, Math.min(window.innerWidth - 160, rect.left + rect.width / 2 - 50));
+    }
     setSelection({
       kind: "text",
       start: resolved.start,
       end: resolved.end,
       quote: resolved.quote,
       sourceQuote: resolved.sourceQuote,
-      top: rect ? Math.max(8, rect.top - 44) : 80,
-      left: rect ? Math.max(8, Math.min(window.innerWidth - 140, rect.left + rect.width / 2 - 60)) : 80,
+      top: btnTop,
+      left: btnLeft,
     });
   }, [doc, viewMode, docxView]);
 
   useEffect(() => {
-    const root = textRef.current;
-    if (!root) return;
-    const handler = () => {
-      window.setTimeout(resolveTextSelection, 0);
+    let timer = 0;
+    const scheduleResolve = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(resolveTextSelection, 20);
     };
-    root.addEventListener("mouseup", handler);
-    root.addEventListener("keyup", handler);
+
+    document.addEventListener("mouseup", scheduleResolve);
+    document.addEventListener("keyup", scheduleResolve);
+
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelection(null);
+      }
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+
     return () => {
-      root.removeEventListener("mouseup", handler);
-      root.removeEventListener("keyup", handler);
+      document.removeEventListener("mouseup", scheduleResolve);
+      document.removeEventListener("keyup", scheduleResolve);
+      document.removeEventListener("selectionchange", onSelectionChange);
+      window.clearTimeout(timer);
     };
   }, [resolveTextSelection]);
 
@@ -865,15 +890,28 @@ export function ReviewerApp({ bridge, pendingDocument }: ReviewerAppProps) {
         return;
       }
       const domSelection = window.getSelection();
-      const rect = domSelection && domSelection.rangeCount > 0
-        ? domSelection.getRangeAt(0).getBoundingClientRect()
-        : null;
+      let rect: DOMRect | null = null;
+      if (domSelection && domSelection.rangeCount > 0) {
+        const range = domSelection.getRangeAt(0);
+        const clientRects = range.getClientRects();
+        rect = clientRects.length > 0 ? clientRects[0] : range.getBoundingClientRect();
+      }
+      let btnTop = 80;
+      let btnLeft = 80;
+      if (rect) {
+        if (rect.top >= 52) {
+          btnTop = rect.top - 40;
+        } else {
+          btnTop = Math.min(window.innerHeight - 50, rect.bottom + 8);
+        }
+        btnLeft = Math.max(12, Math.min(window.innerWidth - 160, rect.left + rect.width / 2 - 50));
+      }
       setSelection({
         kind: "pdf",
         parts: result.parts,
         quote: result.rawQuote,
-        top: rect ? Math.max(8, rect.top - 44) : 80,
-        left: rect ? Math.max(8, Math.min(window.innerWidth - 140, rect.left + rect.width / 2 - 60)) : 80,
+        top: btnTop,
+        left: btnLeft,
       });
     },
     [],

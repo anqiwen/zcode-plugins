@@ -114,6 +114,68 @@ function closestSourceElement(node: Node | null, root: HTMLElement): HTMLElement
   return null;
 }
 
+function findSourceElement(
+  node: Node | null,
+  offset: number,
+  root: HTMLElement,
+  direction: "start" | "end",
+): { element: HTMLElement; textOffset: number } | null {
+  if (!node) return null;
+
+  // Case 1: text node
+  if (node.nodeType === Node.TEXT_NODE) {
+    const el = closestSourceElement(node, root);
+    if (el) {
+      return { element: el, textOffset: offsetWithin(el, node, offset) };
+    }
+  }
+
+  // Case 2: element node
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const el = node as HTMLElement;
+    if (el.dataset && el.dataset.s !== undefined) {
+      return { element: el, textOffset: 0 };
+    }
+    const children = Array.from(el.childNodes);
+    if (children.length > 0) {
+      if (direction === "start") {
+        const idx = Math.min(offset, children.length - 1);
+        const child = children[idx];
+        const res = findSourceElement(child, 0, root, "start");
+        if (res) return res;
+      } else {
+        const idx = Math.max(0, Math.min(offset > 0 ? offset - 1 : 0, children.length - 1));
+        const child = children[idx];
+        const childLen = child.textContent?.length ?? 0;
+        const res = findSourceElement(child, childLen, root, "end");
+        if (res) return res;
+      }
+    }
+    const candidates = Array.from(el.querySelectorAll<HTMLElement>("[data-s]"));
+    if (candidates.length > 0) {
+      const target = direction === "start" ? candidates[0] : candidates[candidates.length - 1];
+      const textOffset = direction === "start" ? 0 : (target.textContent?.length ?? 0);
+      return { element: target, textOffset };
+    }
+  }
+
+  // Fallback: search parent within root
+  let cur: Node | null = node;
+  while (cur && cur !== root) {
+    const parent: HTMLElement | null = cur.parentElement;
+    if (!parent) break;
+    const candidates = Array.from(parent.querySelectorAll<HTMLElement>("[data-s]"));
+    if (candidates.length > 0) {
+      const target = direction === "start" ? candidates[0] : candidates[candidates.length - 1];
+      const textOffset = direction === "start" ? 0 : (target.textContent?.length ?? 0);
+      return { element: target, textOffset };
+    }
+    cur = parent;
+  }
+
+  return null;
+}
+
 function offsetWithin(element: HTMLElement, container: Node, offset: number): number {
   const range = document.createRange();
   range.selectNodeContents(element);
@@ -137,18 +199,37 @@ export function resolveDomSelection(
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return null;
+  const inside =
+    root.contains(range.commonAncestorContainer) ||
+    root.contains(range.startContainer) ||
+    root.contains(range.endContainer);
+  if (!inside) return null;
 
-  const startEl = closestSourceElement(range.startContainer, root);
-  const endEl = closestSourceElement(range.endContainer, root);
-  if (!startEl || !endEl) return null;
+  const startRes = findSourceElement(range.startContainer, range.startOffset, root, "start");
+  const endRes = findSourceElement(range.endContainer, range.endOffset, root, "end");
+  if (!startRes || !endRes) {
+    // Fallback: if data-s boundary resolution failed, match the visible quote in source
+    const quote = normalizeWhitespace(selection.toString());
+    if (quote && quote.length >= 1) {
+      const at = source.indexOf(quote);
+      if (at >= 0) {
+        return {
+          start: at,
+          end: at + quote.length,
+          quote,
+          sourceQuote: source.slice(at, at + quote.length),
+        };
+      }
+    }
+    return null;
+  }
 
-  const pageStart = Number(startEl.dataset.s);
-  const pageEnd = Number(endEl.dataset.s);
+  const pageStart = Number(startRes.element.dataset.s);
+  const pageEnd = Number(endRes.element.dataset.s);
   if (!Number.isFinite(pageStart) || !Number.isFinite(pageEnd)) return null;
 
-  let start = pageStart + offsetWithin(startEl, range.startContainer, range.startOffset);
-  let end = pageEnd + offsetWithin(endEl, range.endContainer, range.endOffset);
+  let start = pageStart + startRes.textOffset;
+  let end = pageEnd + endRes.textOffset;
   if (end < start) [start, end] = [end, start];
 
   start = Math.max(0, Math.min(start, source.length));
@@ -261,7 +342,11 @@ export function resolveDocxDomSelection(
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
   const range = selection.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) return null;
+  const inside =
+    root.contains(range.commonAncestorContainer) ||
+    root.contains(range.startContainer) ||
+    root.contains(range.endContainer);
+  if (!inside) return null;
 
   const quote = normalizeWhitespace(selection.toString());
   if (!quote) return null;
@@ -288,6 +373,19 @@ export function resolveDocxDomSelection(
     if (!best || candidate.score > best.score) best = candidate;
     if (score >= 4) break;
     from = at + Math.max(1, quote.length);
+  }
+
+  if (!best && quote.length >= 2) {
+    const prefix = quote.slice(0, Math.min(24, quote.length));
+    const at = index.text.indexOf(prefix);
+    if (at >= 0) {
+      const approxEnd = Math.min(index.text.length - 1, at + quote.length - 1);
+      best = {
+        start: index.starts[at],
+        end: index.ends[approxEnd],
+        score: 1,
+      };
+    }
   }
 
   if (!best) return null;

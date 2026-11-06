@@ -492,6 +492,8 @@
       .work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
       #editorHost { flex: 1; min-height: 0; overflow: hidden; background: var(--bg); }
       #editorHost .cm-editor { height: 100%; }
+      #drawHost { flex: 1; min-height: 0; overflow: hidden; background: var(--bg); position: relative; }
+      #drawHost .excalidraw { --ui-font: var(--sans); }
       #editorHost.source-mode .cm-content {
         font-family: var(--mono) !important;
         font-size: 13px !important;
@@ -701,6 +703,7 @@
         white-space: nowrap;
       }
       .banner button:hover { background: rgba(0, 0, 0, 0.06); }
+      /*__DRAW_CSS__*/
     </style>
   </head>
   <body>
@@ -713,6 +716,7 @@
       <select id="vaultSel" title="选择 Obsidian 库"></select>
       <button class="btn" id="newBtn" title="在库根目录新建笔记"></button>
       <button class="btn" id="newFolderBtn" title="在库根目录新建文件夹"></button>
+      <button class="btn" id="newDrawBtn" title="在库根目录新建 Excalidraw 画布"></button>
       <button class="btn iconbtn" id="reloadBtn" title="重新加载面板（更新插件后旧会话不热加载，可用它重连）"></button>
     </div>
 
@@ -762,6 +766,7 @@
             </div>
           </div>
           <div id="editorHost"></div>
+          <div id="drawHost" hidden></div>
         </div>
       </section>
     </div>

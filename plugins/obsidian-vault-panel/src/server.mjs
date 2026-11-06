@@ -73,6 +73,17 @@ function safePath(root, rel) {
 
 const IGNORE = new Set([".obsidian", ".git", ".trash", "node_modules", ".DS_Store"]);
 
+// Note-like files we surface in the tree:
+//   .md            -> Markdown note
+//   .excalidraw.md -> Obsidian Excalidraw drawing (Obsidian's own format)
+//   .excalidraw    -> plain Excalidraw scene JSON
+function fileKind(name) {
+  const n = name.toLowerCase();
+  if (n.endsWith(".excalidraw.md") || n.endsWith(".excalidraw")) return "drawing";
+  if (n.endsWith(".md")) return "note";
+  return null;
+}
+
 // ---------------------------------------------------------------- change tracking
 // fs.watch(recursive) gives a cheap monotonic counter per vault. The panel polls
 // tree_revision (a few bytes) instead of re-walking the whole tree every tick.
@@ -118,8 +129,9 @@ async function walkTree(root, rel, depth, maxDepth, maxEntries) {
     const childRel = rel ? `${rel}/${e.name}` : e.name;
     if (e.isDirectory()) {
       node.children.push(await walkTree(root, childRel, depth + 1, maxDepth, maxEntries));
-    } else if (e.name.toLowerCase().endsWith(".md")) {
-      node.children.push({ name: e.name, path: childRel, type: "file" });
+    } else {
+      const kind = fileKind(e.name);
+      if (kind) node.children.push({ name: e.name, path: childRel, type: "file", kind });
     }
   }
   node.children.sort((a, b) =>
@@ -308,6 +320,87 @@ tool(
   }
 );
 
+const EMPTY_SCENE = JSON.stringify(
+  { type: "excalidraw", version: 2, source: "zcode-obsidian-vault-panel", elements: [], appState: {}, files: {} },
+  null,
+  2
+);
+
+tool(
+  "read_drawing",
+  {
+    description: "读取 vault 里一个 .excalidraw 画布的 JSON 与修改时间",
+    inputSchema: {
+      vault: z.string().describe("vault id"),
+      path: z.string().describe("相对 vault 根的 .excalidraw 路径"),
+    },
+  },
+  true,
+  async ({ vault, path: rel }) => {
+    const v = await resolveVault(vault);
+    const abs = safePath(v.root, rel);
+    if (!abs.toLowerCase().endsWith(".excalidraw")) throw new Error("只能读取 .excalidraw 画布");
+    const st = await fs.stat(abs);
+    const content = await fs.readFile(abs, "utf8");
+    return { structuredContent: { path: rel, content, mtime: st.mtimeMs, size: st.size } };
+  }
+);
+
+tool(
+  "write_drawing",
+  {
+    description: "把 Excalidraw 场景 JSON 写回 vault；带 mtime 乐观锁",
+    inputSchema: {
+      vault: z.string().describe("vault id"),
+      path: z.string().describe("相对 vault 根的 .excalidraw 路径"),
+      content: z.string().describe("完整场景 JSON 文本"),
+      mtime: z.number().optional().describe("读取时的 mtimeMs；不一致则拒绝覆盖"),
+    },
+  },
+  true,
+  async ({ vault, path: rel, content, mtime }) => {
+    const v = await resolveVault(vault);
+    const abs = safePath(v.root, rel);
+    if (!abs.toLowerCase().endsWith(".excalidraw")) throw new Error("只能写入 .excalidraw 画布");
+    let currentMtime = 0;
+    try {
+      currentMtime = (await fs.stat(abs)).mtimeMs;
+    } catch {
+      /* new */
+    }
+    if (mtime != null && currentMtime && Math.abs(currentMtime - mtime) > 2) {
+      throw new Error("画布在外部被改动过，已拒绝覆盖（请重新打开再保存）");
+    }
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, content, "utf8");
+    const st = await fs.stat(abs);
+    return { structuredContent: { path: rel, mtime: st.mtimeMs, saved: true } };
+  }
+);
+
+tool(
+  "create_drawing",
+  {
+    description: "在 vault 里新建一个空白 .excalidraw 画布",
+    inputSchema: {
+      vault: z.string().describe("vault id"),
+      path: z.string().describe("相对路径；不含 .excalidraw 时自动补"),
+    },
+  },
+  true,
+  async ({ vault, path: rel }) => {
+    const v = await resolveVault(vault);
+    let clean = String(rel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!clean.toLowerCase().endsWith(".excalidraw")) clean += ".excalidraw";
+    const abs = safePath(v.root, clean);
+    if (fssync.existsSync(abs)) throw new Error("同名画布已存在");
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, EMPTY_SCENE, "utf8");
+    const st = await fs.stat(abs);
+    return { structuredContent: { path: clean, mtime: st.mtimeMs, created: true } };
+  }
+);
+
 tool(
   "create_folder",
   {
@@ -344,8 +437,9 @@ tool(
   async ({ vault, path: rel }) => {
     const v = await resolveVault(vault);
     const abs = safePath(v.root, rel);
-    if (!abs.toLowerCase().endsWith(".md")) {
-      throw new Error("只能删除 .md 文件");
+    const lower = abs.toLowerCase();
+    if (!lower.endsWith(".md") && !lower.endsWith(".excalidraw")) {
+      throw new Error("只能删除 .md 或 .excalidraw 文件");
     }
     if (!fssync.existsSync(abs)) {
       throw new Error("笔记不存在，无法删除");

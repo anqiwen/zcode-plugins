@@ -33,7 +33,7 @@ async function callExpectError(name, args, pattern) {
 const tools = await client.listTools();
 const names = tools.tools.map((t) => t.name);
 console.log("tools:", names.join(", "));
-for (const n of ["list_vaults", "list_notes", "read_note", "write_note", "create_note", "create_folder", "delete_note", "search_notes", "tree_revision", "open_vault_panel"]) {
+for (const n of ["list_vaults", "list_notes", "read_note", "write_note", "create_note", "create_folder", "delete_note", "search_notes", "tree_revision", "read_drawing", "write_drawing", "create_drawing", "open_vault_panel"]) {
   assert(names.includes(n), `工具存在: ${n}`);
 }
 const openTool = tools.tools.find((t) => t.name === "open_vault_panel");
@@ -46,7 +46,12 @@ const res = await client.readResource({ uri: "ui://obsidian-vault-panel/panel.ht
 const c = res.contents[0];
 assert(c.mimeType === "text/html;profile=mcp-app", "面板 MIME = text/html;profile=mcp-app");
 assert(c.text.includes("Obsidian 笔记") && c.text.includes("vaultSel"), "面板 HTML 含内联 UI");
-assert(!/src=["']https?:/.test(c.text), "面板无外域脚本引用");
+// Check the real document markup only: third-party bundles contain literal
+// "<script src=https://...>" strings (Twitter/Reddit embeds, URL helpers) that
+// never load anything. Strip script bodies first.
+const markupOnly = c.text.replace(/<script>[\s\S]*?<\/script>/gi, "<script></script>");
+assert(!/<script[^>]+src=["']https?:/i.test(markupOnly), "面板无外域脚本标签");
+assert(!/<link[^>]+href=["']https?:/i.test(markupOnly), "面板无外域样式表标签");
 console.log("  panel.html size:", c.text.length, "chars");
 
 // --- list_vaults ---
@@ -114,6 +119,33 @@ await callExpectError("delete_note", { vault: vid, path: "something.txt" }, /只
 await fs.rm(path.join(vroot, tmpDir), { recursive: true, force: true });
 await fs.unlink(path.join(vroot, tmpName));
 console.log("  cleaned temp note + folder");
+
+// --- drawing round-trip (.excalidraw) ---
+const drawName = `__zcode_panel_smoke_draw_${Date.now()}.excalidraw`;
+const cd = await client.callTool({ name: "create_drawing", arguments: { vault: vid, path: drawName } });
+assert(cd.structuredContent.created === true, "create_drawing 创建画布成功");
+const rdw = await client.callTool({ name: "read_drawing", arguments: { vault: vid, path: drawName } });
+const scene = JSON.parse(rdw.structuredContent.content);
+assert(scene.type === "excalidraw" && Array.isArray(scene.elements), "画布 JSON 结构正确");
+scene.elements.push({ id: "test-rect", type: "rectangle", x: 10, y: 10, width: 80, height: 40 });
+const wrw = await client.callTool({
+  name: "write_drawing",
+  arguments: { vault: vid, path: drawName, content: JSON.stringify(scene), mtime: rdw.structuredContent.mtime },
+});
+assert(wrw.structuredContent.saved === true, "write_drawing 保存成功");
+const rdw2 = await client.callTool({ name: "read_drawing", arguments: { vault: vid, path: drawName } });
+assert(JSON.parse(rdw2.structuredContent.content).elements.length === 1, "画布元素回读一致");
+// drawing must appear in the tree as kind=drawing
+const ln2 = await client.callTool({ name: "list_notes", arguments: { vault: vid } });
+function findNode(n, p) {
+  if (n.path === p) return n;
+  for (const c of n.children || []) { const hit = findNode(c, p); if (hit) return hit; }
+  return null;
+}
+const drawNode = findNode(ln2.structuredContent.tree, drawName);
+assert(drawNode && drawNode.kind === "drawing", "目录树把 .excalidraw 标记为 drawing");
+await client.callTool({ name: "delete_note", arguments: { vault: vid, path: drawName } });
+console.log("  cleaned temp drawing");
 
 // --- tree_revision: must bump when the vault changes on disk from outside ---
 const r1 = await client.callTool({ name: "tree_revision", arguments: { vault: vid } });

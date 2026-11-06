@@ -36610,6 +36610,12 @@ function safePath(root, rel) {
   return abs;
 }
 var IGNORE = /* @__PURE__ */ new Set([".obsidian", ".git", ".trash", "node_modules", ".DS_Store"]);
+function fileKind(name) {
+  const n = name.toLowerCase();
+  if (n.endsWith(".excalidraw.md") || n.endsWith(".excalidraw")) return "drawing";
+  if (n.endsWith(".md")) return "note";
+  return null;
+}
 var watchers = /* @__PURE__ */ new Map();
 function watcherFor(v) {
   const existing = watchers.get(v.id);
@@ -36649,8 +36655,9 @@ async function walkTree(root, rel, depth, maxDepth, maxEntries) {
     const childRel = rel ? `${rel}/${e.name}` : e.name;
     if (e.isDirectory()) {
       node2.children.push(await walkTree(root, childRel, depth + 1, maxDepth, maxEntries));
-    } else if (e.name.toLowerCase().endsWith(".md")) {
-      node2.children.push({ name: e.name, path: childRel, type: "file" });
+    } else {
+      const kind = fileKind(e.name);
+      if (kind) node2.children.push({ name: e.name, path: childRel, type: "file", kind });
     }
   }
   node2.children.sort(
@@ -36821,6 +36828,82 @@ tool(
     return { structuredContent: { path: clean, mtime: st.mtimeMs, saved: true } };
   }
 );
+var EMPTY_SCENE = JSON.stringify(
+  { type: "excalidraw", version: 2, source: "zcode-obsidian-vault-panel", elements: [], appState: {}, files: {} },
+  null,
+  2
+);
+tool(
+  "read_drawing",
+  {
+    description: "\u8BFB\u53D6 vault \u91CC\u4E00\u4E2A .excalidraw \u753B\u5E03\u7684 JSON \u4E0E\u4FEE\u6539\u65F6\u95F4",
+    inputSchema: {
+      vault: external_exports.string().describe("vault id"),
+      path: external_exports.string().describe("\u76F8\u5BF9 vault \u6839\u7684 .excalidraw \u8DEF\u5F84")
+    }
+  },
+  true,
+  async ({ vault, path: rel }) => {
+    const v = await resolveVault(vault);
+    const abs = safePath(v.root, rel);
+    if (!abs.toLowerCase().endsWith(".excalidraw")) throw new Error("\u53EA\u80FD\u8BFB\u53D6 .excalidraw \u753B\u5E03");
+    const st = await fs.stat(abs);
+    const content = await fs.readFile(abs, "utf8");
+    return { structuredContent: { path: rel, content, mtime: st.mtimeMs, size: st.size } };
+  }
+);
+tool(
+  "write_drawing",
+  {
+    description: "\u628A Excalidraw \u573A\u666F JSON \u5199\u56DE vault\uFF1B\u5E26 mtime \u4E50\u89C2\u9501",
+    inputSchema: {
+      vault: external_exports.string().describe("vault id"),
+      path: external_exports.string().describe("\u76F8\u5BF9 vault \u6839\u7684 .excalidraw \u8DEF\u5F84"),
+      content: external_exports.string().describe("\u5B8C\u6574\u573A\u666F JSON \u6587\u672C"),
+      mtime: external_exports.number().optional().describe("\u8BFB\u53D6\u65F6\u7684 mtimeMs\uFF1B\u4E0D\u4E00\u81F4\u5219\u62D2\u7EDD\u8986\u76D6")
+    }
+  },
+  true,
+  async ({ vault, path: rel, content, mtime }) => {
+    const v = await resolveVault(vault);
+    const abs = safePath(v.root, rel);
+    if (!abs.toLowerCase().endsWith(".excalidraw")) throw new Error("\u53EA\u80FD\u5199\u5165 .excalidraw \u753B\u5E03");
+    let currentMtime = 0;
+    try {
+      currentMtime = (await fs.stat(abs)).mtimeMs;
+    } catch {
+    }
+    if (mtime != null && currentMtime && Math.abs(currentMtime - mtime) > 2) {
+      throw new Error("\u753B\u5E03\u5728\u5916\u90E8\u88AB\u6539\u52A8\u8FC7\uFF0C\u5DF2\u62D2\u7EDD\u8986\u76D6\uFF08\u8BF7\u91CD\u65B0\u6253\u5F00\u518D\u4FDD\u5B58\uFF09");
+    }
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, content, "utf8");
+    const st = await fs.stat(abs);
+    return { structuredContent: { path: rel, mtime: st.mtimeMs, saved: true } };
+  }
+);
+tool(
+  "create_drawing",
+  {
+    description: "\u5728 vault \u91CC\u65B0\u5EFA\u4E00\u4E2A\u7A7A\u767D .excalidraw \u753B\u5E03",
+    inputSchema: {
+      vault: external_exports.string().describe("vault id"),
+      path: external_exports.string().describe("\u76F8\u5BF9\u8DEF\u5F84\uFF1B\u4E0D\u542B .excalidraw \u65F6\u81EA\u52A8\u8865")
+    }
+  },
+  true,
+  async ({ vault, path: rel }) => {
+    const v = await resolveVault(vault);
+    let clean = String(rel || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!clean.toLowerCase().endsWith(".excalidraw")) clean += ".excalidraw";
+    const abs = safePath(v.root, clean);
+    if (fssync.existsSync(abs)) throw new Error("\u540C\u540D\u753B\u5E03\u5DF2\u5B58\u5728");
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, EMPTY_SCENE, "utf8");
+    const st = await fs.stat(abs);
+    return { structuredContent: { path: clean, mtime: st.mtimeMs, created: true } };
+  }
+);
 tool(
   "create_folder",
   {
@@ -36856,8 +36939,9 @@ tool(
   async ({ vault, path: rel }) => {
     const v = await resolveVault(vault);
     const abs = safePath(v.root, rel);
-    if (!abs.toLowerCase().endsWith(".md")) {
-      throw new Error("\u53EA\u80FD\u5220\u9664 .md \u6587\u4EF6");
+    const lower = abs.toLowerCase();
+    if (!lower.endsWith(".md") && !lower.endsWith(".excalidraw")) {
+      throw new Error("\u53EA\u80FD\u5220\u9664 .md \u6216 .excalidraw \u6587\u4EF6");
     }
     if (!fssync.existsSync(abs)) {
       throw new Error("\u7B14\u8BB0\u4E0D\u5B58\u5728\uFF0C\u65E0\u6CD5\u5220\u9664");

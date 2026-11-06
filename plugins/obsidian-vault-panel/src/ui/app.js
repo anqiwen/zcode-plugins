@@ -7,6 +7,7 @@ import {
   applyHostFonts,
 } from "@modelcontextprotocol/ext-apps";
 import { baseExtensions, previewExtension } from "./live-preview.js";
+import { mountDrawing, unmountDrawing } from "./draw.js";
 
 // ---------------------------------------------------------------- SVG Icons
 const ICONS = {
@@ -53,6 +54,15 @@ function applyHost() {
   } catch {
     document.documentElement.dataset.theme = ctx?.theme ?? "light";
   }
+  // Excalidraw only reads its theme on mount, so re-mount when the host flips.
+  const theme = ctx?.theme === "dark" ? "dark" : "light";
+  if (state.theme !== theme) {
+    state.theme = theme;
+    if (state.drawing && state.live) {
+      state.drawJson = getDoc() || state.drawJson;
+      mountCanvas();
+    }
+  }
 }
 
 async function call(name, args) {
@@ -75,12 +85,14 @@ const el = {
   expandAllBtn: $("#expandAllBtn"),
   tree: $("#tree"),
   editorHost: $("#editorHost"),
+  drawHost: $("#drawHost"),
   tabLive: $("#tabLive"),
   tabSource: $("#tabSource"),
   saveBtn: $("#saveBtn"),
   delBtn: $("#delBtn"),
   newBtn: $("#newBtn"),
   newFolderBtn: $("#newFolderBtn"),
+  newDrawBtn: $("#newDrawBtn"),
   status: $("#status"),
   statusText: $("#statusText"),
   statusStats: $("#statusStats"),
@@ -254,6 +266,9 @@ const state = {
   dirty: false,
   live: true,
   theme: "light",
+  // Drawing state (.excalidraw canvas mode)
+  drawing: false,
+  drawJson: null,
 };
 
 function setStatus(msg, kind = "info") {
@@ -345,6 +360,13 @@ function setLive(on) {
   state.live = on;
   el.tabLive.classList.toggle("active", on);
   el.tabSource.classList.toggle("active", !on);
+  if (state.drawing) {
+    // Tab 1 = Excalidraw canvas, tab 2 = raw scene JSON.
+    el.tabLive.textContent = "画布";
+    if (on) showDrawingCanvas();
+    else showDrawingSource();
+    return;
+  }
   el.modeHint.textContent = on ? "实时预览 · 光标行露源码" : "源码模式";
   el.editorHost.classList.toggle("source-mode", !on);
   if (view) {
@@ -398,8 +420,10 @@ function buildTree(node, container, depth) {
       const a = document.createElement("button");
       a.className = "file" + (child.path === state.openPath ? " active" : "");
       a.dataset.path = child.path;
-      const fileIcon = isExcalidrawFile(child.name) ? ICONS.draw : ICONS.file;
-      const iconCls = isExcalidrawFile(child.name) ? "ficon draw-icon" : "ficon file-icon";
+      const isCanvasFile = /\.excalidraw$/i.test(child.name);
+      const isDrawingLike = child.kind === "drawing" || isExcalidrawFile(child.name);
+      const fileIcon = isDrawingLike ? ICONS.draw : ICONS.file;
+      const iconCls = isDrawingLike ? "ficon draw-icon" : "ficon file-icon";
       a.innerHTML = `
         <span class="${iconCls}">${fileIcon}</span>
         <span class="fname">${escapeHtml(child.name)}</span>
@@ -410,7 +434,9 @@ function buildTree(node, container, depth) {
       a.querySelector('[data-act="del-file"]').addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation(); deleteNote(child.path);
       });
-      a.addEventListener("click", () => openNote(child.path));
+      a.addEventListener("click", () =>
+        isCanvasFile ? openDrawing(child.path) : openNote(child.path)
+      );
       a.addEventListener("contextmenu", (e) => showNoteMenu(e, child.path, child.name));
       container.appendChild(a);
     }
@@ -570,6 +596,7 @@ function stopSync() {
 async function openNote(rel) {
   if (state.dirty && !(await askConfirm("当前笔记有未保存的修改，确定要放弃并打开另一篇吗？"))) return;
   try {
+    leaveDrawing();
     setStatus("读取中…", "info");
     const data = await call("read_note", { vault: state.vaultId, path: rel });
     state.openPath = rel;
@@ -594,16 +621,118 @@ async function openNote(rel) {
   }
 }
 
+function leaveDrawing() {
+  if (!state.drawing) return;
+  unmountDrawing();
+  state.drawing = false;
+  state.drawJson = null;
+  el.drawHost.hidden = true;
+  el.drawHost.innerHTML = "";
+  el.editorHost.hidden = false;
+  el.tabLive.textContent = "实时预览";
+}
+
+// Open a plain .excalidraw scene in the embedded canvas.
+async function openDrawing(rel) {
+  if (state.dirty && !(await askConfirm("当前笔记有未保存的修改，确定要放弃并打开画布吗？"))) return;
+  try {
+    setStatus("读取画布…", "info");
+    const data = await call("read_drawing", { vault: state.vaultId, path: rel });
+    leaveDrawing();
+    state.drawing = true;
+    state.drawJson = data.content;
+    state.openPath = rel;
+    state.openMtime = data.mtime;
+    state.live = true;
+    el.tabLive.textContent = "画布";
+    el.tabLive.classList.add("active");
+    el.tabSource.classList.remove("active");
+    el.modeHint.textContent = "Excalidraw 画布";
+    el.title.textContent = rel;
+    el.welcome.hidden = true;
+    el.workspace.hidden = false;
+    el.editorHost.hidden = true;
+    el.drawHost.hidden = false;
+    markDirty(false);
+    mountCanvas();
+    expandFolder(rel);
+    setActiveFile();
+    setStatus(`已打开画布 · ${(data.size / 1024).toFixed(1)} KB`, "ok");
+    updateDocStats();
+  } catch (e) {
+    setStatus("打开画布失败：" + e.message, "bad");
+    toast(e.message, "bad");
+  }
+}
+
+function mountCanvas() {
+  mountDrawing(el.drawHost, {
+    jsonText: state.drawJson ?? "{}",
+    theme: state.theme,
+    onChange: (json) => {
+      state.drawJson = json;
+      markDirty(true);
+      updateDocStats();
+    },
+  });
+}
+
+function showDrawingSource() {
+  const json = state.drawJson ?? getDoc();
+  if (state.drawJson == null) state.drawJson = json;
+  unmountDrawing();
+  setDoc(json);
+  el.drawHost.hidden = true;
+  el.editorHost.hidden = false;
+  el.modeHint.textContent = "场景 JSON";
+}
+
+function showDrawingCanvas() {
+  // Pick up edits made in source mode before remounting.
+  state.drawJson = getDoc() || state.drawJson;
+  el.editorHost.hidden = true;
+  el.drawHost.hidden = false;
+  mountCanvas();
+  el.modeHint.textContent = "Excalidraw 画布";
+}
+
+async function newDrawing(folder = "") {
+  const label = folder ? `在「${folder}」下` : "在库根目录";
+  const name = await askText({
+    title: `${label}新建画布`,
+    desc: "会生成一个 .excalidraw 文件（Obsidian Excalidraw 插件可直接打开）",
+    value: "新建画布.excalidraw",
+  });
+  if (!name) return;
+  const rel = folder ? `${folder}/${name}` : name;
+  try {
+    const data = await call("create_drawing", { vault: state.vaultId, path: rel });
+    await loadTree();
+    expandFolder(rel);
+    toast("已新建画布 " + data.path, "ok");
+    await openDrawing(data.path);
+  } catch (e) {
+    toast(e.message, "bad");
+  }
+}
+
 async function save() {
   if (!state.openPath) return;
   try {
-    const data = await call("write_note", {
+    // In canvas mode the authoritative payload is the serialized scene, not the
+    // CodeMirror buffer (which is hidden then). In source mode the buffer wins.
+    const content = state.drawing && state.live
+      ? (state.drawJson ?? getDoc())
+      : getDoc();
+    const tool = state.drawing ? "write_drawing" : "write_note";
+    const data = await call(tool, {
       vault: state.vaultId,
       path: state.openPath,
-      content: getDoc(),
+      content,
       mtime: state.openMtime,
     });
     state.openMtime = data.mtime;
+    if (state.drawing) state.drawJson = content;
     markDirty(false);
     setStatus("已保存到 vault · " + new Date().toLocaleTimeString(), "ok");
     toast("已保存到 vault", "ok");
@@ -766,8 +895,9 @@ async function search() {
     results.forEach((r) => {
       const a = document.createElement("button");
       a.className = "file search-hit";
-      const hitIcon = isExcalidrawFile(r.name) ? ICONS.draw : ICONS.file;
-      const hitCls = isExcalidrawFile(r.name) ? "ficon draw-icon" : "ficon file-icon";
+      const hitCanvas = /\.excalidraw$/i.test(r.name);
+      const hitIcon = (hitCanvas || isExcalidrawFile(r.name)) ? ICONS.draw : ICONS.file;
+      const hitCls = (hitCanvas || isExcalidrawFile(r.name)) ? "ficon draw-icon" : "ficon file-icon";
       a.innerHTML = `
         <span class="${hitCls}">${hitIcon}</span>
         <span class="fname">${escapeHtml(r.name)}<small>${escapeHtml(r.snippet)}</small></span>
@@ -778,7 +908,7 @@ async function search() {
       a.querySelector('[data-act="del-file"]').addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation(); deleteNote(r.path);
       });
-      a.addEventListener("click", () => openNote(r.path));
+      a.addEventListener("click", () => (hitCanvas ? openDrawing(r.path) : openNote(r.path)));
       el.tree.appendChild(a);
     });
     setStatus(`找到 ${results.length} 条`, "ok");
@@ -793,6 +923,7 @@ function setupIcons() {
   el.toggleSidebar.innerHTML = ICONS.sidebar;
   el.newBtn.innerHTML = `${ICONS.newFile}<span>笔记</span>`;
   el.newFolderBtn.innerHTML = `${ICONS.newFolder}<span>文件夹</span>`;
+  el.newDrawBtn.innerHTML = `${ICONS.draw}<span>画布</span>`;
   el.searchIcon.innerHTML = ICONS.search;
   el.searchBtn.innerHTML = ICONS.search;
   el.collapseAllBtn.innerHTML = ICONS.collapseAll;
@@ -832,6 +963,7 @@ el.collapseAllBtn.addEventListener("click", collapseAll);
 el.expandAllBtn.addEventListener("click", expandAll);
 el.newBtn.addEventListener("click", () => newNote(""));
 el.newFolderBtn.addEventListener("click", () => newFolder(""));
+el.newDrawBtn.addEventListener("click", () => newDrawing(""));
 el.saveBtn.addEventListener("click", save);
 el.reloadBtn.addEventListener("click", reloadPanel);
 el.delBtn.addEventListener("click", () => deleteNote(state.openPath));

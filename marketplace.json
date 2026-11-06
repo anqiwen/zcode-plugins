@@ -59,16 +59,16 @@
     {
       "name": "obsidian-vault-panel",
       "source": "./plugins/obsidian-vault-panel",
-      "version": "0.6.0",
-      "description": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、新建与删除本机 Obsidian vault 里的 Markdown 笔记。",
+      "version": "0.8.0",
+      "description": "在 ZCode 会话侧栏浏览、Live Preview 实时渲染式编辑本机 Obsidian vault 的 Markdown 笔记；目录树自动同步外部改动，支持新建/删除笔记与文件夹。",
       "category": "productivity",
       "displayName": "Obsidian Vault Panel",
       "displayName_i18n": {
         "zh-CN": "Obsidian 笔记"
       },
       "description_i18n": {
-        "zh-CN": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、新建与删除本机 Obsidian vault 里的 Markdown 笔记。",
-        "en-US": "Browse, Live-Preview edit, create and delete Markdown notes from local Obsidian vaults directly in the ZCode session sidebar."
+        "zh-CN": "在 ZCode 会话侧栏浏览、Live Preview 实时渲染式编辑本机 Obsidian vault 的 Markdown 笔记；目录树自动同步外部改动，支持新建/删除笔记与文件夹。",
+        "en-US": "Browse and Live-Preview edit Markdown notes in local Obsidian vaults from the ZCode sidebar, with automatic tree sync and safe create/delete."
       },
       "tags": [
         "obsidian",

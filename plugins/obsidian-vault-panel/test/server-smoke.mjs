@@ -33,7 +33,7 @@ async function callExpectError(name, args, pattern) {
 const tools = await client.listTools();
 const names = tools.tools.map((t) => t.name);
 console.log("tools:", names.join(", "));
-for (const n of ["list_vaults", "list_notes", "read_note", "write_note", "create_note", "create_folder", "delete_note", "search_notes", "open_vault_panel"]) {
+for (const n of ["list_vaults", "list_notes", "read_note", "write_note", "create_note", "create_folder", "delete_note", "search_notes", "tree_revision", "open_vault_panel"]) {
   assert(names.includes(n), `工具存在: ${n}`);
 }
 const openTool = tools.tools.find((t) => t.name === "open_vault_panel");
@@ -114,6 +114,17 @@ await callExpectError("delete_note", { vault: vid, path: "something.txt" }, /只
 await fs.rm(path.join(vroot, tmpDir), { recursive: true, force: true });
 await fs.unlink(path.join(vroot, tmpName));
 console.log("  cleaned temp note + folder");
+
+// --- tree_revision: must bump when the vault changes on disk from outside ---
+const r1 = await client.callTool({ name: "tree_revision", arguments: { vault: vid } });
+assert(typeof r1.structuredContent.revision === "number", "tree_revision 返回数字版本号");
+const watchDir = path.join(vroot, `.__zcode_rev_test_${Date.now()}`);
+await fs.mkdir(watchDir, { recursive: true });
+await new Promise((r) => setTimeout(r, 900)); // allow debounce to settle
+const r2 = await client.callTool({ name: "tree_revision", arguments: { vault: vid } });
+assert(r2.structuredContent.revision > r1.structuredContent.revision, "外部改动后版本号递增");
+console.log(`  revision ${r1.structuredContent.revision} -> ${r2.structuredContent.revision}`);
+await fs.rm(watchDir, { recursive: true, force: true });
 
 // --- search ---
 const se = await client.callTool({ name: "search_notes", arguments: { vault: vid, query: "冒烟", limit: 5 } });

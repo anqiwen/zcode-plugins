@@ -36610,6 +36610,29 @@ function safePath(root, rel) {
   return abs;
 }
 var IGNORE = /* @__PURE__ */ new Set([".obsidian", ".git", ".trash", "node_modules", ".DS_Store"]);
+var watchers = /* @__PURE__ */ new Map();
+function watcherFor(v) {
+  const existing = watchers.get(v.id);
+  if (existing) return existing;
+  const entry = { rev: 1, watcher: null, timer: null };
+  try {
+    entry.watcher = fssync.watch(v.root, { recursive: true }, () => {
+      if (entry.timer) return;
+      entry.timer = setTimeout(() => {
+        entry.timer = null;
+        entry.rev++;
+      }, 300);
+      entry.timer.unref?.();
+    });
+    entry.watcher.on?.("error", () => {
+    });
+    entry.watcher.unref?.();
+  } catch {
+    entry.watcher = null;
+  }
+  watchers.set(v.id, entry);
+  return entry;
+}
 async function walkTree(root, rel, depth, maxDepth, maxEntries) {
   const node2 = { name: path.basename(rel) || "", path: rel, type: "dir", children: [] };
   if (depth > maxDepth) return node2;
@@ -36698,6 +36721,25 @@ tool(
     const v = await resolveVault(vault);
     const tree = await walkTree(v.root, "", 0, 6, 400);
     return { structuredContent: { vault: { id: v.id, name: v.name, root: v.root }, tree } };
+  }
+);
+tool(
+  "tree_revision",
+  {
+    description: "\u8FD4\u56DE\u67D0\u4E2A vault \u76EE\u5F55\u6811\u7684\u53D8\u66F4\u7248\u672C\u53F7\uFF1B\u7248\u672C\u53F7\u53D8\u5316\u8868\u793A\u6587\u4EF6\u5939/\u7B14\u8BB0\u5728\u5916\u90E8\u88AB\u6539\u52A8",
+    inputSchema: { vault: external_exports.string().optional().describe("vault id \u6216\u540D\u79F0") }
+  },
+  true,
+  async ({ vault }) => {
+    const v = await resolveVault(vault);
+    const w = watcherFor(v);
+    return {
+      structuredContent: {
+        revision: w.rev,
+        watching: !!w.watcher,
+        vault: { id: v.id, name: v.name }
+      }
+    };
   }
 );
 tool(

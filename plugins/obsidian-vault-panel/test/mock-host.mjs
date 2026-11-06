@@ -66,6 +66,8 @@ const hostHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
   const logEl = document.getElementById('log');
   function log(s){const d=document.createElement('div');d.textContent=s;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;console.log('[HOST]',s)}
   const pending = new Map(); let seq = 1;
+  const dropInit = Number(new URLSearchParams(location.search).get('drop') || 0);
+  let droppedInit = 0;
   function post(msg){ frame.contentWindow.postMessage(msg,'*'); }
 
   async function rpc(method, params){
@@ -79,7 +81,21 @@ const hostHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
       // request from the app -> host
       let result;
       try{
-        if(data.method === 'ui/initialize'){ result = ${JSON.stringify(initializeResult)}; document.getElementById('state').textContent='✓ 握手完成'; }
+        if(data.method === 'ui/initialize'){
+          if (droppedInit < dropInit) {
+            droppedInit++;
+            log('dropping ui/initialize #' + droppedInit + ' (simulated handshake failure)');
+            return; // no response -> client times out and retries
+          }
+          const init = ${JSON.stringify(initializeResult)};
+          // ?stale=1 simulates an old task whose session kept the previous
+          // plugin registration (no zcode/surface capability).
+          if (location.search.includes('stale=1')) {
+            delete init.hostCapabilities.experimental['zcode/surface'];
+          }
+          result = init;
+          document.getElementById('state').textContent='✓ 握手完成';
+        }
         else if(data.method === 'tools/call' || data.method === 'resources/read' || data.method === 'resources/list' || data.method === 'resources/templates/list'){
           const proxied = await rpc(data.method, data.params||{});
           if(proxied && proxied.__rpc_error){ throw new Error(proxied.__rpc_error); }
@@ -118,7 +134,8 @@ const hostHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 </script></body></html>`;
 
 const server = http.createServer(async (req, res) => {
-  if (req.url === "/" || req.url?.startsWith("/index")) {
+  const urlPath = (req.url || "").split("?")[0];
+  if (urlPath === "/" || urlPath.startsWith("/index")) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(hostHtml);
   }

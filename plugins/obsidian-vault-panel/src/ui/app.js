@@ -24,14 +24,24 @@ const ICONS = {
   trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
   save: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>`,
   docBig: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 9H8"/></svg>`,
+  refresh: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`,
+  draw: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`,
 };
 
 // ---------------------------------------------------------------- bridge
-const app = new App(
-  { name: "obsidian-vault-panel", version: "0.6.0" },
-  { availableDisplayModes: ["inline", "fullscreen"] }
-);
+// App.connect() throws if a transport is already attached, and close() does NOT
+// clear it — so a failed handshake leaves that instance unusable. Build a fresh
+// App for each retry instead.
+function createApp() {
+  const a = new App(
+    { name: "obsidian-vault-panel", version: "0.7.0" },
+    { availableDisplayModes: ["inline", "fullscreen"] }
+  );
+  a.onhostcontextchanged = applyHost;
+  return a;
+}
 
+let app = createApp();
 let hostReady = false;
 
 function applyHost() {
@@ -44,7 +54,6 @@ function applyHost() {
     document.documentElement.dataset.theme = ctx?.theme ?? "light";
   }
 }
-app.onhostcontextchanged = applyHost;
 
 async function call(name, args) {
   if (!hostReady) throw new Error("面板尚未连接到宿主，请稍候重试");
@@ -88,6 +97,10 @@ const el = {
   resizer: $("#resizer"),
   searchIcon: $("#searchIcon"),
   brandLogo: $("#brandLogo"),
+  reloadBtn: $("#reloadBtn"),
+  connBanner: $("#connBanner"),
+  connBannerText: $("#connBannerText"),
+  connBannerAction: $("#connBannerAction"),
   modalBackdrop: $("#modalBackdrop"),
   modalTitle: $("#modalTitle"),
   modalDesc: $("#modalDesc"),
@@ -155,6 +168,39 @@ function askConfirm(message, isDanger = false) {
     el.modalBackdrop.addEventListener("mousedown", backdrop);
     setTimeout(() => el.modalOk.focus(), 0);
   });
+}
+
+function showBanner(text, kind = "warn", actionLabel = "", action = null) {
+  el.connBannerText.textContent = text;
+  el.connBanner.dataset.kind = kind;
+  el.connBanner.hidden = false;
+  if (actionLabel && action) {
+    el.connBannerAction.textContent = actionLabel;
+    el.connBannerAction.hidden = false;
+    el.connBannerAction.onclick = action;
+  } else {
+    el.connBannerAction.hidden = true;
+    el.connBannerAction.onclick = null;
+  }
+}
+
+function hideBanner() {
+  el.connBanner.hidden = true;
+}
+
+// A full page reload is the only reliable way to recover a panel whose MCP
+// handshake or script state went bad after a plugin upgrade. It re-runs boot(),
+// re-connects to the host and re-reads the vault.
+async function reloadPanel() {
+  if (state.dirty) {
+    const ok = await askConfirm("当前笔记有未保存的修改，重新加载会丢失这些修改。确定继续吗？", true);
+    if (!ok) return;
+  }
+  try {
+    window.location.reload();
+  } catch {
+    location.href = location.href;
+  }
 }
 
 // ---------------------------------------------------------------- sidebar sizing
@@ -311,6 +357,12 @@ function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+// Obsidian Excalidraw stores drawings as "*.excalidraw.md" (JSON in a code
+// fence). Show them with a distinct icon so they aren't mistaken for prose.
+function isExcalidrawFile(name) {
+  return /\.excalidraw\.md$/i.test(name || "");
+}
+
 function buildTree(node, container, depth) {
   node.children.forEach((child) => {
     if (child.type === "dir") {
@@ -346,8 +398,10 @@ function buildTree(node, container, depth) {
       const a = document.createElement("button");
       a.className = "file" + (child.path === state.openPath ? " active" : "");
       a.dataset.path = child.path;
+      const fileIcon = isExcalidrawFile(child.name) ? ICONS.draw : ICONS.file;
+      const iconCls = isExcalidrawFile(child.name) ? "ficon draw-icon" : "ficon file-icon";
       a.innerHTML = `
-        <span class="ficon file-icon">${ICONS.file}</span>
+        <span class="${iconCls}">${fileIcon}</span>
         <span class="fname">${escapeHtml(child.name)}</span>
         <span class="file-actions">
           <button class="mini-btn del-btn" title="删除笔记" data-act="del-file">${ICONS.trash}</button>
@@ -363,7 +417,22 @@ function buildTree(node, container, depth) {
   });
 }
 
-function renderTree(tree) {
+function snapshotExpanded() {
+  const open = new Set();
+  el.tree.querySelectorAll("details.folder[open]").forEach((d) => open.add(d.dataset.path));
+  return open;
+}
+
+function applyExpanded(openSet) {
+  if (!openSet || !openSet.size) return;
+  el.tree.querySelectorAll("details.folder").forEach((d) => {
+    if (openSet.has(d.dataset.path)) d.open = true;
+  });
+}
+
+function renderTree(tree, { preserve = true } = {}) {
+  const prevOpen = preserve ? snapshotExpanded() : new Set();
+  const prevScroll = el.tree.scrollTop;
   state.tree = tree;
   el.tree.innerHTML = "";
   if (!tree || !tree.children.length) {
@@ -371,10 +440,14 @@ function renderTree(tree) {
     return;
   }
   buildTree(tree, el.tree, 0);
+  // Keep whatever the user had expanded, so an auto-sync doesn't visually reset
+  // the whole tree back to collapsed.
+  applyExpanded(prevOpen);
   if (state.openPath) {
     expandFolder(state.openPath);
     setActiveFile();
   }
+  el.tree.scrollTop = prevScroll;
 }
 
 function setActiveFile() {
@@ -423,6 +496,77 @@ async function loadTree() {
   renderTree(data.tree);
 }
 
+// ---------------------------------------------------------------- live sync
+// The panel has no filesystem access of its own: folders created in Obsidian or
+// Explorer are invisible until we re-read the tree. Poll a tiny revision counter
+// and re-read only when it actually changed.
+function treeHasFile(node, path) {
+  if (!node) return false;
+  if (node.type === "file") return node.path === path;
+  return (node.children || []).some((c) => treeHasFile(c, path));
+}
+
+let lastRevision = null;
+let syncTimer = null;
+let syncing = false;
+
+async function syncTree({ silent = true } = {}) {
+  if (!state.vaultId || !hostReady || syncing) return;
+  syncing = true;
+  try {
+    const data = await call("list_notes", { vault: state.vaultId });
+    const openWas = state.openPath;
+    renderTree(data.tree);
+    if (openWas && !treeHasFile(data.tree, openWas)) {
+      state.openPath = null;
+      state.openMtime = null;
+      markDirty(false);
+      el.workspace.hidden = true;
+      el.welcome.hidden = false;
+      el.title.textContent = "";
+      updateDocStats();
+      toast("当前笔记已在外部被移除", "warn");
+    }
+    if (!silent) setStatus("目录已同步", "ok");
+  } catch (e) {
+    if (!silent) toast("同步失败：" + e.message, "bad");
+  } finally {
+    syncing = false;
+  }
+}
+
+async function pollRevision() {
+  if (!hostReady || !state.vaultId || syncing) return;
+  if (document.hidden) return; // panel not visible: no point polling
+  try {
+    const data = await call("tree_revision", { vault: state.vaultId });
+    if (lastRevision === null) {
+      lastRevision = data.revision;
+      return;
+    }
+    if (data.revision !== lastRevision) {
+      lastRevision = data.revision;
+      await syncTree();
+    }
+  } catch {
+    /* transient; retry on next tick */
+  }
+}
+
+function startSync(intervalMs = 2500) {
+  stopSync();
+  syncTimer = setInterval(pollRevision, intervalMs);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) pollRevision();
+  });
+  window.addEventListener("focus", () => pollRevision());
+}
+
+function stopSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = null;
+}
+
 async function openNote(rel) {
   if (state.dirty && !(await askConfirm("当前笔记有未保存的修改，确定要放弃并打开另一篇吗？"))) return;
   try {
@@ -437,7 +581,12 @@ async function openNote(rel) {
     markDirty(false);
     expandFolder(rel);
     setActiveFile();
-    setStatus(`已打开 · ${(data.size / 1024).toFixed(1)} KB`, "ok");
+    if (isExcalidrawFile(rel)) {
+      setStatus("Excalidraw 绘图文件 · 画布需在 Obsidian 中查看，这里显示其文本源码", "warn");
+      toast("Excalidraw 绘图文件：画布请在 Obsidian 中打开", "info");
+    } else {
+      setStatus(`已打开 · ${(data.size / 1024).toFixed(1)} KB`, "ok");
+    }
     if (view) view.focus();
   } catch (e) {
     setStatus("读取失败：" + e.message, "bad");
@@ -617,8 +766,10 @@ async function search() {
     results.forEach((r) => {
       const a = document.createElement("button");
       a.className = "file search-hit";
+      const hitIcon = isExcalidrawFile(r.name) ? ICONS.draw : ICONS.file;
+      const hitCls = isExcalidrawFile(r.name) ? "ficon draw-icon" : "ficon file-icon";
       a.innerHTML = `
-        <span class="ficon file-icon">${ICONS.file}</span>
+        <span class="${hitCls}">${hitIcon}</span>
         <span class="fname">${escapeHtml(r.name)}<small>${escapeHtml(r.snippet)}</small></span>
         <span class="file-actions">
           <button class="mini-btn del-btn" title="删除笔记" data-act="del-file">${ICONS.trash}</button>
@@ -649,6 +800,7 @@ function setupIcons() {
   el.welcomeIcon.innerHTML = ICONS.docBig;
   el.docIcon.innerHTML = ICONS.file;
   el.delBtn.innerHTML = ICONS.trash;
+  el.reloadBtn.innerHTML = ICONS.refresh;
   renderSaveBtn(false);
 }
 
@@ -660,12 +812,14 @@ el.vaultSel.addEventListener("change", async () => {
   }
   state.vaultId = el.vaultSel.value;
   state.openPath = null;
+  lastRevision = null;
   el.welcome.hidden = false;
   el.workspace.hidden = true;
   markDirty(false);
   updateDocStats();
   try {
     await loadTree();
+    await pollRevision();
   } catch (e) {
     toast(e.message, "bad");
   }
@@ -679,6 +833,7 @@ el.expandAllBtn.addEventListener("click", expandAll);
 el.newBtn.addEventListener("click", () => newNote(""));
 el.newFolderBtn.addEventListener("click", () => newFolder(""));
 el.saveBtn.addEventListener("click", save);
+el.reloadBtn.addEventListener("click", reloadPanel);
 el.delBtn.addEventListener("click", () => deleteNote(state.openPath));
 el.tabLive.addEventListener("click", () => setLive(true));
 el.tabSource.addEventListener("click", () => setLive(false));
@@ -696,18 +851,65 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 // ---------------------------------------------------------------- boot
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function connectWithRetry(maxAttempts = 3) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // The SDK default request timeout is 60s; without an explicit timeout a
+      // dead host would leave the panel blank for minutes before failing.
+      await app.connect(undefined, { timeout: 6000 });
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.error(`[ovp] app.connect() attempt ${attempt}/${maxAttempts} failed:`, e);
+      if (attempt === maxAttempts) break;
+      setStatus(`正在重新连接宿主（${attempt}/${maxAttempts}）…`, "warn");
+      showBanner(`面板与宿主的连接中断，正在自动重连（${attempt}/${maxAttempts}）…`, "warn");
+      // A failed connect leaves the current App unusable (transport stays set).
+      app = createApp();
+      await sleep(400 * 2 ** (attempt - 1));
+    }
+  }
+  throw lastErr || new Error("无法连接宿主");
+}
+
 async function boot() {
   setupIcons();
   createEditor();
   setLive(true);
   initSidebar();
   try {
-    await app.connect();
+    await connectWithRetry();
     hostReady = true;
     applyHost();
+
+    // A panel can render while the session still holds the previous plugin
+    // registration (ZCode does not hot-reload plugins into running tasks).
+    // Surface id is the cheapest way to tell "current version" from "stale".
+    const surface = app.getHostCapabilities?.()?.experimental?.["zcode/surface"];
+    if (!surface || surface.id !== "obsidian-vault") {
+      showBanner(
+        "当前会话可能仍在使用旧版本插件（面板未按新版本注册）。建议按 Ctrl+N 新建会话；也可先点「刷新」重试。",
+        "warn",
+        "刷新",
+        reloadPanel
+      );
+    } else {
+      hideBanner();
+    }
+
     await loadVaults();
+    startSync();
   } catch (e) {
     setStatus("连接宿主失败：" + e.message, "bad");
+    showBanner(
+      "无法连接 ZCode 宿主，面板可能无法正常工作。点「刷新」重试；若仍失败，请新建会话（Ctrl+N）后重新打开面板。",
+      "bad",
+      "刷新",
+      reloadPanel
+    );
     console.error(e);
   }
 }

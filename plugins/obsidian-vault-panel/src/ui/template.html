@@ -303,6 +303,7 @@
         width: 16px;
       }
       .ficon.file-icon { color: var(--muted); }
+      .ficon.draw-icon { color: #f59e0b; }
       .fname {
         flex: 1;
         overflow: hidden;
@@ -674,6 +675,32 @@
       .modal .actions .cancel:hover {
         border-color: var(--accent);
       }
+      /* ---- connection banner ---- */
+      .banner {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        font-size: 11.5px;
+        line-height: 1.5;
+        border-bottom: 1px solid var(--line);
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .banner[data-kind="bad"] { background: var(--bad-bg); color: var(--bad); }
+      .banner .banner-text { flex: 1; }
+      .banner button {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: var(--radius-md);
+        border: 1px solid currentColor;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .banner button:hover { background: rgba(0, 0, 0, 0.06); }
     </style>
   </head>
   <body>
@@ -686,6 +713,12 @@
       <select id="vaultSel" title="选择 Obsidian 库"></select>
       <button class="btn" id="newBtn" title="在库根目录新建笔记"></button>
       <button class="btn" id="newFolderBtn" title="在库根目录新建文件夹"></button>
+      <button class="btn iconbtn" id="reloadBtn" title="重新加载面板（更新插件后旧会话不热加载，可用它重连）"></button>
+    </div>
+
+    <div class="banner" id="connBanner" hidden>
+      <span class="banner-text" id="connBannerText"></span>
+      <button id="connBannerAction" hidden></button>
     </div>
 
     <div class="main">

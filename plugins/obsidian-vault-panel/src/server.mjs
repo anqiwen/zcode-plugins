@@ -73,6 +73,35 @@ function safePath(root, rel) {
 
 const IGNORE = new Set([".obsidian", ".git", ".trash", "node_modules", ".DS_Store"]);
 
+// ---------------------------------------------------------------- change tracking
+// fs.watch(recursive) gives a cheap monotonic counter per vault. The panel polls
+// tree_revision (a few bytes) instead of re-walking the whole tree every tick.
+const watchers = new Map();
+
+function watcherFor(v) {
+  const existing = watchers.get(v.id);
+  if (existing) return existing;
+  const entry = { rev: 1, watcher: null, timer: null };
+  try {
+    entry.watcher = fssync.watch(v.root, { recursive: true }, () => {
+      // Debounce bursts: Obsidian touches .obsidian/* and temp files a lot.
+      if (entry.timer) return;
+      entry.timer = setTimeout(() => {
+        entry.timer = null;
+        entry.rev++;
+      }, 300);
+      entry.timer.unref?.();
+    });
+    // A watch error must not crash the stdio server.
+    entry.watcher.on?.("error", () => {});
+    entry.watcher.unref?.();
+  } catch {
+    entry.watcher = null;
+  }
+  watchers.set(v.id, entry);
+  return entry;
+}
+
 async function walkTree(root, rel, depth, maxDepth, maxEntries) {
   const node = { name: path.basename(rel) || "", path: rel, type: "dir", children: [] };
   if (depth > maxDepth) return node;
@@ -173,6 +202,26 @@ tool(
     const v = await resolveVault(vault);
     const tree = await walkTree(v.root, "", 0, 6, 400);
     return { structuredContent: { vault: { id: v.id, name: v.name, root: v.root }, tree } };
+  }
+);
+
+tool(
+  "tree_revision",
+  {
+    description: "返回某个 vault 目录树的变更版本号；版本号变化表示文件夹/笔记在外部被改动",
+    inputSchema: { vault: z.string().optional().describe("vault id 或名称") },
+  },
+  true,
+  async ({ vault }) => {
+    const v = await resolveVault(vault);
+    const w = watcherFor(v);
+    return {
+      structuredContent: {
+        revision: w.rev,
+        watching: !!w.watcher,
+        vault: { id: v.id, name: v.name },
+      },
+    };
   }
 );
 

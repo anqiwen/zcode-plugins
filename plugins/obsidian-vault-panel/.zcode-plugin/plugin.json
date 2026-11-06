@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-panel",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、保存本机 Obsidian vault 里的 Markdown 笔记。",
   "description_i18n": {
     "en": "Browse, edit and save Markdown notes from local Obsidian vaults directly in the ZCode session sidebar.",

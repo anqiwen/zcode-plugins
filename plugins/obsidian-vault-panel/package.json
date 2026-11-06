@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-panel",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "ZCode 侧边栏面板：直接浏览并编辑本机 Obsidian vault 里的 Markdown 笔记",

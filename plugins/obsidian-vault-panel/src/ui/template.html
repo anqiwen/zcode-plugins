@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Obsidian 笔记</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --fg: var(--color-text-primary, #24292f);
+        --muted: var(--color-text-secondary, #57606a);
+        --subtle: var(--color-text-tertiary, #8c959f);
+        --bg: var(--color-background-primary, #ffffff);
+        --panel: var(--color-background-secondary, #f8f9fa);
+        --surface: var(--color-background-tertiary, #f0f2f5);
+        --hover: var(--color-background-ghost, rgba(124, 58, 237, 0.06));
+        --hover-row: rgba(0, 0, 0, 0.04);
+        --line: var(--color-border-primary, rgba(0, 0, 0, 0.08));
+        --line-strong: var(--color-border-secondary, rgba(0, 0, 0, 0.16));
+        --accent: var(--color-text-info, #7c3aed);
+        --accent-hover: #6d28d9;
+        --accent-bg: rgba(124, 58, 237, 0.08);
+        --accent-subtle: rgba(124, 58, 237, 0.14);
+        --ok: #10b981;
+        --bad: #ef4444;
+        --bad-bg: rgba(239, 68, 68, 0.08);
+        --warn: #f59e0b;
+        --warn-bg: rgba(245, 158, 11, 0.1);
+        --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace;
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 10px;
+      }
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --fg: var(--color-text-primary, #e6edf3);
+        --muted: var(--color-text-secondary, #9da7b3);
+        --subtle: var(--color-text-tertiary, #6e7781);
+        --bg: var(--color-background-primary, #111318);
+        --panel: var(--color-background-secondary, #181b22);
+        --surface: var(--color-background-tertiary, #222631);
+        --hover: var(--color-background-ghost, rgba(167, 139, 250, 0.08));
+        --hover-row: rgba(255, 255, 255, 0.04);
+        --line: var(--color-border-primary, rgba(255, 255, 255, 0.08));
+        --line-strong: var(--color-border-secondary, rgba(255, 255, 255, 0.16));
+        --accent: #a78bfa;
+        --accent-hover: #c4b5fd;
+        --accent-bg: rgba(167, 139, 250, 0.12);
+        --accent-subtle: rgba(167, 139, 250, 0.2);
+        --bad-bg: rgba(239, 68, 68, 0.15);
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font-family: var(--sans);
+        color: var(--fg);
+        background: var(--bg);
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* ---- top bar ---- */
+      .topbar {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+        height: 42px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        white-space: nowrap;
+        letter-spacing: .2px;
+      }
+      .brand svg { flex: none; }
+      select, input[type="text"], button {
+        font-family: inherit;
+        font-size: 12px;
+        color: var(--fg);
+        background: var(--bg);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        padding: 4px 8px;
+        outline: none;
+        transition: all .15s ease;
+      }
+      select:focus, input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-subtle);
+      }
+      #vaultSel {
+        max-width: 180px;
+        flex: 1 1 auto;
+        height: 28px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        height: 28px;
+        cursor: pointer;
+        white-space: nowrap;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        font-weight: 500;
+        padding: 0 9px;
+      }
+      .btn:hover {
+        background: var(--hover);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: var(--accent-hover);
+        color: #fff;
+        filter: brightness(1.05);
+      }
+      .btn.danger-ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--muted);
+      }
+      .btn.danger-ghost:hover {
+        background: var(--bad-bg);
+        color: var(--bad);
+        border-color: var(--bad);
+      }
+      .btn.dirty {
+        background: var(--warn);
+        color: #fff;
+        border-color: var(--warn);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.85; }
+      }
+      .iconbtn {
+        padding: 0;
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+      }
+      /* ---- main split ---- */
+      .main { flex: 1; min-height: 0; display: flex; }
+      .sidebar {
+        width: var(--sidebar-w, 248px);
+        flex: none;
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        background: var(--panel);
+        min-height: 0;
+        position: relative;
+        transition: width .16s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      body.sidebar-collapsed .sidebar { width: 0; border-right: 0; overflow: hidden; }
+      .resizer {
+        position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
+        cursor: col-resize; z-index: 5; background: transparent;
+        transition: background .15s;
+      }
+      .resizer:hover, .resizer.dragging { background: var(--accent); opacity: .5; }
+      body.sidebar-collapsed .resizer { display: none; }
+      .sidebar-reopen {
+        display: none;
+        flex: none; width: 20px; border-right: 1px solid var(--line);
+        background: var(--panel); cursor: pointer; color: var(--muted);
+        align-items: center; justify-content: center; font-size: 13px;
+        transition: all .15s;
+      }
+      .sidebar-reopen:hover { background: var(--hover); color: var(--accent); }
+      body.sidebar-collapsed .sidebar-reopen { display: flex; }
+
+      /* ---- search row & toolbar ---- */
+      .searchrow {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+      }
+      .search-icon {
+        position: absolute;
+        left: 7px;
+        pointer-events: none;
+        color: var(--subtle);
+      }
+      .searchrow input {
+        width: 100%;
+        height: 26px;
+        padding-left: 24px;
+        font-size: 11.5px;
+      }
+      .toolbtn {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .12s;
+      }
+      .toolbtn:hover {
+        background: var(--hover);
+        color: var(--accent);
+      }
+
+      /* ---- file tree ---- */
+      .tree {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 6px 4px 24px;
+        scrollbar-width: thin;
+      }
+      .empty {
+        color: var(--subtle);
+        padding: 24px 12px;
+        text-align: center;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .search-head {
+        padding: 6px 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+        border-bottom: 1px dashed var(--line);
+        margin-bottom: 4px;
+      }
+      /* folder & items */
+      details.folder {
+        user-select: none;
+      }
+      details.folder > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 6px;
+        border-radius: var(--radius-sm);
+        color: var(--fg);
+        font-size: 12.5px;
+        transition: background .1s;
+        height: 26px;
+      }
+      details.folder > summary::-webkit-details-marker { display: none; }
+      details.folder > summary:hover { background: var(--hover-row); }
+      .chev {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        color: var(--subtle);
+        transition: transform .15s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      details[open] > summary .chev { transform: rotate(90deg); }
+      .kids {
+        margin-left: 14px;
+        border-left: 1px solid var(--line);
+        padding-left: 2px;
+      }
+      .ficon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        flex: none;
+        width: 16px;
+      }
+      .ficon.file-icon { color: var(--muted); }
+      .fname {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12.5px;
+      }
+      .folder-name { font-weight: 500; }
+      .folder-actions, .file-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity .1s;
+      }
+      details.folder > summary:hover .folder-actions,
+      button.file:hover .file-actions {
+        opacity: 1;
+      }
+      .mini-btn {
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .12s;
+      }
+      .mini-btn:hover {
+        background: var(--hover);
+        color: var(--accent);
+      }
+      .mini-btn.del-btn:hover {
+        background: var(--bad-bg);
+        color: var(--bad);
+      }
+      button.file {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        border-radius: var(--radius-sm);
+        padding: 4px 6px;
+        cursor: pointer;
+        color: var(--fg);
+        font-size: 12.5px;
+        height: 26px;
+        position: relative;
+        transition: background .1s;
+      }
+      button.file:hover { background: var(--hover-row); }
+      button.file.active {
+        background: var(--accent-bg);
+        color: var(--accent);
+        font-weight: 500;
+      }
+      button.file.active::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 3px;
+        bottom: 3px;
+        width: 2.5px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+      .search-hit small {
+        display: block;
+        color: var(--subtle);
+        font-weight: 400;
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      /* ---- context menu ---- */
+      .ctxmenu {
+        position: fixed;
+        z-index: 60;
+        min-width: 170px;
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        padding: 4px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        font-size: 12px;
+        animation: fadeIn .1s ease-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .ctxmenu button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        color: var(--fg);
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .ctxmenu button:hover { background: var(--hover); color: var(--accent); }
+      .ctxmenu button.danger:hover { background: var(--bad-bg); color: var(--bad); }
+      .ctxmenu .sep { height: 1px; background: var(--line); margin: 3px 2px; }
+      .ctxmenu .hint { color: var(--subtle); padding: 4px 10px; font-size: 10.5px; }
+
+      /* ---- content area ---- */
+      .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .docbar {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-bottom: 1px solid var(--line);
+        background: var(--bg);
+        height: 42px;
+      }
+      .docbar-path {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+      }
+      .docbar .title {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--fg);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .modehint {
+        font-size: 10px;
+        color: var(--subtle);
+        white-space: nowrap;
+        background: var(--surface);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      /* segmented pill switcher */
+      .segmented {
+        display: inline-flex;
+        background: var(--surface);
+        border-radius: var(--radius-md);
+        padding: 2px;
+        gap: 2px;
+      }
+      .segmented button {
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        padding: 3px 10px;
+        border-radius: var(--radius-sm);
+        font-size: 11.5px;
+        color: var(--muted);
+        font-weight: 500;
+        transition: all .12s;
+      }
+      .segmented button.active {
+        background: var(--bg);
+        color: var(--fg);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        font-weight: 600;
+      }
+      .actions-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ---- editor ---- */
+      .work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      #editorHost { flex: 1; min-height: 0; overflow: hidden; background: var(--bg); }
+      #editorHost .cm-editor { height: 100%; }
+      #editorHost.source-mode .cm-content {
+        font-family: var(--mono) !important;
+        font-size: 13px !important;
+      }
+
+      /* ---- welcome screen ---- */
+      #welcome {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: var(--muted);
+        text-align: center;
+        padding: 32px;
+      }
+      .welcome-card {
+        max-width: 420px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 32px 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      }
+      .welcome-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--accent-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+      }
+      #welcome h2 {
+        margin: 4px 0 0;
+        color: var(--fg);
+        font-size: 16px;
+        font-weight: 600;
+      }
+      #welcome p {
+        margin: 0;
+        line-height: 1.6;
+        font-size: 12.5px;
+      }
+      #welcome code {
+        font-family: var(--mono);
+        background: var(--surface);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: var(--accent);
+      }
+
+      /* ---- statusbar & toast ---- */
+      .statusbar {
+        flex: none;
+        border-top: 1px solid var(--line);
+        padding: 4px 12px;
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--panel);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 24px;
+      }
+      .status-left { display: flex; align-items: center; gap: 6px; }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--subtle);
+      }
+      .statusbar[data-kind="ok"] .status-dot { background: var(--ok); }
+      .statusbar[data-kind="bad"] .status-dot { background: var(--bad); }
+      .statusbar[data-kind="warn"] .status-dot { background: var(--warn); }
+      .toast {
+        position: fixed;
+        bottom: 34px;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: var(--fg);
+        color: var(--bg);
+        padding: 7px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        opacity: 0;
+        pointer-events: none;
+        transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+        max-width: 80%;
+        text-align: center;
+        z-index: 100;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      .toast[data-kind="bad"] { background: var(--bad); color: #fff; }
+      .toast[data-kind="ok"] { background: var(--ok); color: #fff; }
+      [hidden] { display: none !important; }
+
+      /* ---- in-panel modal ---- */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn .15s ease-out;
+      }
+      .modal {
+        width: min(380px, 100%);
+        background: var(--panel);
+        color: var(--fg);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        padding: 20px;
+      }
+      .modal h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .modal .desc {
+        margin: 0 0 14px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+        white-space: pre-line;
+      }
+      .modal input {
+        width: 100%;
+        padding: 7px 10px;
+        font-size: 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: var(--bg);
+        color: var(--fg);
+        outline: none;
+      }
+      .modal input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-subtle);
+      }
+      .modal .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .modal .actions button {
+        padding: 6px 14px;
+        font-size: 12px;
+        cursor: pointer;
+        border-radius: var(--radius-md);
+      }
+      .modal .actions .ok {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .modal .actions .ok:hover {
+        background: var(--accent-hover);
+      }
+      .modal .actions .ok.danger {
+        background: var(--bad);
+        border-color: var(--bad);
+      }
+      .modal .actions .cancel:hover {
+        border-color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <button class="btn iconbtn" id="toggleSidebar" title="收起/展开文件树"></button>
+      <div class="brand">
+        <span id="brandLogo"></span>
+        <span>Obsidian 笔记</span>
+      </div>
+      <select id="vaultSel" title="选择 Obsidian 库"></select>
+      <button class="btn" id="newBtn" title="在库根目录新建笔记"></button>
+      <button class="btn" id="newFolderBtn" title="在库根目录新建文件夹"></button>
+    </div>
+
+    <div class="main">
+      <aside class="sidebar" id="sidebar">
+        <div class="resizer" id="resizer" title="拖动调整宽度"></div>
+        <div class="searchrow">
+          <div class="search-wrap">
+            <span class="search-icon" id="searchIcon"></span>
+            <input type="text" id="search" placeholder="搜索笔记内容…" />
+          </div>
+          <button class="toolbtn" id="collapseAllBtn" title="全部折叠"></button>
+          <button class="toolbtn" id="expandAllBtn" title="全部展开"></button>
+          <button class="toolbtn" id="searchBtn" title="全文检索"></button>
+        </div>
+        <div class="tree" id="tree"><div class="empty">加载中…</div></div>
+      </aside>
+      <div class="sidebar-reopen" id="sidebarReopen" title="展开文件树">›</div>
+
+      <section class="content">
+        <div id="welcome">
+          <div class="welcome-card">
+            <div class="welcome-icon" id="welcomeIcon"></div>
+            <h2>在侧栏里读写 Obsidian 笔记</h2>
+            <p>左侧选择一篇 <code>.md</code> 笔记即可书写。默认开启<strong>实时预览</strong>：输入时直接渲染 Markdown，光标行露出源码。<code>Ctrl+S</code> 实时保存回 vault。</p>
+          </div>
+        </div>
+        <div id="workspace" class="work" hidden>
+          <div class="docbar">
+            <div class="docbar-path">
+              <span id="docIcon"></span>
+              <span class="title" id="docTitle"></span>
+            </div>
+            <span class="modehint" id="modeHint"></span>
+            <div class="segmented">
+              <button id="tabLive" class="active">实时预览</button>
+              <button id="tabSource">源码</button>
+            </div>
+            <div class="actions-group">
+              <button class="btn danger-ghost iconbtn" id="delBtn" title="删除当前笔记"></button>
+              <button class="btn primary" id="saveBtn"></button>
+            </div>
+          </div>
+          <div id="editorHost"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="statusbar" id="status">
+      <div class="status-left">
+        <span class="status-dot"></span>
+        <span id="statusText">就绪</span>
+      </div>
+      <div class="status-right" id="statusStats"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 id="modalTitle"></h3>
+        <p class="desc" id="modalDesc"></p>
+        <input type="text" id="modalInput" />
+        <div class="actions">
+          <button class="btn cancel" id="modalCancel">取消</button>
+          <button class="btn ok" id="modalOk">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <script>/*__APP_BUNDLE__*/</script>
+  </body>
+</html>

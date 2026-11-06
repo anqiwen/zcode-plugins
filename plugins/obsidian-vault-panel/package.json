@@ -1,0 +1,31 @@
+{
+  "name": "obsidian-vault-panel",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "ZCode 侧边栏面板：直接浏览并编辑本机 Obsidian vault 里的 Markdown 笔记",
+  "scripts": {
+    "build": "node build.mjs",
+    "test:server": "node test/server-smoke.mjs",
+    "test:ui": "node test/mock-host.mjs"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/core": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

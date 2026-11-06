@@ -22,7 +22,7 @@ anqiwen 的 ZCode 插件市场。添加一次市场，即可安装这里的所�
 | --- | --- | --- |
 | [document-reviewer](plugins/document-reviewer/README.md) | 0.15.0 | 阅读 Markdown、TXT、PDF、DOCX，DOCX 支持原版/Markdown 双预览及护眼暗色纸张，选区批注、一键导出 Markdown 并交给主 Agent 修改 |
 | [opencode-go-usage](plugins/opencode-go-usage/README.md) | 0.1.1 | OpenCode Go 订阅额度面板：多账号、5 小时/每周/每月进度、重置倒计时、定时刷新与额度预警 |
-| [obsidian-vault-panel](plugins/obsidian-vault-panel/README.md) | 0.8.0 | 会话侧栏 Obsidian 笔记面板：自动发现 Vault、Live Preview 实时渲染式编辑、一键收起折叠目录树、新建与安全删除笔记、目录树自动同步外部改动 |
+| [obsidian-vault-panel](plugins/obsidian-vault-panel/README.md) | 0.9.0 | 会话侧栏 Obsidian 笔记面板：自动发现 Vault、Live Preview 实时渲染式编辑、一键收起折叠目录树、新建/删除笔记与文件夹、目录树自动同步、内嵌 Excalidraw 画布 |
 
 后续插件会加入同一个市场。
 

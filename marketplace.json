@@ -59,16 +59,16 @@
     {
       "name": "obsidian-vault-panel",
       "source": "./plugins/obsidian-vault-panel",
-      "version": "0.8.0",
-      "description": "在 ZCode 会话侧栏浏览、Live Preview 实时渲染式编辑本机 Obsidian vault 的 Markdown 笔记；目录树自动同步外部改动，支持新建/删除笔记与文件夹。",
+      "version": "0.9.0",
+      "description": "在 ZCode 会话侧栏浏览、Live Preview 编辑本机 Obsidian vault 的 Markdown 笔记，内嵌 Excalidraw 画布可直接编辑 .excalidraw 绘图。",
       "category": "productivity",
       "displayName": "Obsidian Vault Panel",
       "displayName_i18n": {
         "zh-CN": "Obsidian 笔记"
       },
       "description_i18n": {
-        "zh-CN": "在 ZCode 会话侧栏浏览、Live Preview 实时渲染式编辑本机 Obsidian vault 的 Markdown 笔记；目录树自动同步外部改动，支持新建/删除笔记与文件夹。",
-        "en-US": "Browse and Live-Preview edit Markdown notes in local Obsidian vaults from the ZCode sidebar, with automatic tree sync and safe create/delete."
+        "zh-CN": "在 ZCode 会话侧栏浏览、Live Preview 编辑本机 Obsidian vault 的 Markdown 笔记，内嵌 Excalidraw 画布可直接编辑 .excalidraw 绘图。",
+        "en-US": "Browse and Live-Preview edit Obsidian Markdown notes in the ZCode sidebar, with an embedded Excalidraw canvas for .excalidraw drawings."
       },
       "tags": [
         "obsidian",

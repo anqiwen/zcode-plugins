@@ -82,6 +82,59 @@
       "authorUrl": "https://github.com/anqiwen",
       "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/obsidian-vault-panel",
       "icon": "https://fastly.jsdelivr.net/gh/anqiwen/zcode-plugins@main/plugins/obsidian-vault-panel/assets/icon.png"
+    },
+    {
+      "name": "textfold-panel",
+      "source": "./plugins/textfold-panel",
+      "version": "0.1.0",
+      "description": "在 ZCode 会话侧栏常驻打开 TextFold 科研长文语义折叠阅读器，支持自动探活、全屏阅读与 Zotero 文献联动。",
+      "category": "productivity",
+      "displayName": "TextFold Reader",
+      "displayName_i18n": {
+        "zh-CN": "TextFold 阅读器",
+        "en-US": "TextFold Reader"
+      },
+      "description_i18n": {
+        "zh-CN": "在 ZCode 会话侧栏常驻打开 TextFold 科研长文语义折叠阅读器，支持自动探活、全屏阅读与 Zotero 文献联动。",
+        "en-US": "Persistent TextFold semantic-zoom reader panel in the ZCode sidebar with auto port discovery and Zotero integration."
+      },
+      "tags": [
+        "textfold",
+        "reader",
+        "pdf",
+        "zotero",
+        "sidebar",
+        "paper"
+      ],
+      "author": "ZhiXHY",
+      "authorUrl": "https://github.com/anqiwen",
+      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/textfold-panel"
+    },
+    {
+      "name": "figure-studio",
+      "source": "./plugins/figure-studio",
+      "version": "0.1.1",
+      "description": "调已有 matplotlib 脚本的样式参数：读出脚本用到的字号/配色/线宽/图幅，在侧栏改完预览满意后写回源码，脚本逻辑一行不动。",
+      "category": "productivity",
+      "displayName": "Figure Studio",
+      "displayName_i18n": {
+        "zh-CN": "绘图调参"
+      },
+      "description_i18n": {
+        "zh-CN": "调已有 matplotlib 脚本的样式参数：读出脚本用到的字号/配色/线宽/图幅，在侧栏改完预览满意后写回源码，脚本逻辑一行不动。",
+        "en-US": "Tune the style parameters of an existing matplotlib script in a side panel, preview the result, then write the changes back into the source."
+      },
+      "tags": [
+        "matplotlib",
+        "figure",
+        "plot",
+        "style",
+        "tuning",
+        "research"
+      ],
+      "author": "ZhiXHY",
+      "authorUrl": "https://github.com/anqiwen",
+      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/figure-studio"
     }
   ]
 }

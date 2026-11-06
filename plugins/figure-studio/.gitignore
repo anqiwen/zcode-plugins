@@ -1,0 +1,5 @@
+.preview/
+.tmp-test/
+*.bak
+__pycache__/
+*.pyc

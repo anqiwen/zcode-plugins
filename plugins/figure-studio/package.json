@@ -1,0 +1,18 @@
+{
+  "name": "figure-studio",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "Point at an existing matplotlib script, tune its style in a side panel, and write the changes back into the source.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

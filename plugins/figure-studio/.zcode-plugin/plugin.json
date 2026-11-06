@@ -1,0 +1,51 @@
+{
+  "name": "figure-studio",
+  "version": "0.1.1",
+  "description": "在侧栏调已有 Python 绘图脚本的样式参数，预览满意后把改动写回源码。不重画面、不接管数据，只改字号/配色/线宽/图幅等样式。",
+  "description_i18n": {
+    "zh-CN": "在侧栏调已有 Python 绘图脚本的样式参数，预览满意后把改动写回源码。",
+    "en-US": "Tune the style parameters of an existing matplotlib script in a side panel, preview the result, then write the changes back into the source."
+  },
+  "author": {
+    "name": "ZhiXHY"
+  },
+  "license": "MIT",
+  "keywords": [
+    "matplotlib",
+    "figure",
+    "plot",
+    "style",
+    "tuning",
+    "research"
+  ],
+  "mcpServers": {
+    "studio": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/dist/server.mjs"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}",
+        "ZCODE_PLUGIN_ROOT": "${ZCODE_PLUGIN_ROOT}",
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "studio",
+        "title": {
+          "zh-CN": "绘图调参",
+          "en-US": "Figure Studio"
+        },
+        "icon": "pen-tool",
+        "server": "studio",
+        "resourceUri": "ui://figure-studio/panel.html",
+        "availability": "session"
+      }
+    ]
+  }
+}

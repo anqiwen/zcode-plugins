@@ -1,0 +1,271 @@
+:root {
+  --bg: #ffffff;
+  --bg2: #f6f7f9;
+  --fg: #1a1d21;
+  --muted: #6b7280;
+  --line: #e3e6ea;
+  --accent: #0072b2;
+  --danger: #d55e00;
+  --ok: #009e73;
+  --radius: 6px;
+}
+[data-theme="dark"] {
+  --bg: #17191c;
+  --bg2: #1f2226;
+  --fg: #e6e8ea;
+  --muted: #9aa3ad;
+  --line: #2e333a;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+}
+body[data-busy] { cursor: progress; }
+
+#app {
+  position: relative;   /* 脚本浮层的定位基准 */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+[hidden] { display: none !important; }
+
+header {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+}
+header input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+header input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+button {
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { border-color: var(--accent); color: var(--accent); }
+button.danger:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+
+/* 脚本列表浮层：只在点「扫描」时出现，选完/按 Esc/点外面就收起 */
+#pickwrap {
+  position: absolute;
+  top: 45px;
+  left: 8px;
+  right: 8px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+.pick-head {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.pick-head input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+}
+.pick-head input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+#picklist {
+  overflow: auto;
+  padding: 4px 6px 6px;
+}
+.pick {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.pick:hover { background: var(--line); }
+#scan[data-on="1"] { border-color: var(--accent); color: var(--accent); }
+
+main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+}
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; }
+}
+
+#params {
+  overflow: auto;
+  padding: 6px 8px;
+  border-right: 1px solid var(--line);
+}
+details { margin-bottom: 6px; }
+summary {
+  cursor: pointer;
+  padding: 3px 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0 2px 10px;
+}
+.row .k {
+  font-size: 12px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .k code {
+  margin-left: 5px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+.row[data-touched="1"] .k { color: var(--accent); font-weight: 600; }
+.row[data-touched="1"] .k::after { content: " ●"; font-size: 9px; }
+.row input {
+  width: 100%;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+}
+.row input[type="color"] { padding: 0; height: 24px; }
+.row input[type="checkbox"] { width: auto; justify-self: start; }
+
+#view {
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#viewbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.chk { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.chk input { margin: 0; }
+
+figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+figcaption {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* 只有开了对照，才需要给「当前」这张贴标签 */
+#figcur figcaption { display: none; }
+#view.compare #figcur figcaption { display: block; }
+#view.compare #figorig {
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
+}
+
+#img, #imgorig {
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+#empty {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 40px 10px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+
+#warn {
+  padding: 7px 10px;
+  border: 1px solid #b8860b;
+  border-left: 3px solid #d55e00;
+  border-radius: var(--radius);
+  background: rgba(213, 94, 0, 0.08);
+  color: var(--fg);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+pre {
+  margin: 4px 0;
+  padding: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 11px;
+  line-height: 1.45;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  background: var(--bg2);
+}
+#status { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+#status[data-kind="error"] { color: var(--danger); }
+#status[data-kind="ok"] { color: var(--ok); }
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-size: 12px; }

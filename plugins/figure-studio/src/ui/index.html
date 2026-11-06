@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>绘图调参</title>
+<style>/*__INLINE_CSS__*/</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <input id="script" type="text" spellcheck="false"
+           placeholder="工作区内的 .py 路径，例如 07_脚本与工具/fig12.py" />
+    <button id="inspect" class="primary">读取参数</button>
+    <button id="scan">扫描</button>
+  </header>
+
+  <!-- 脚本列表：浮层，选完即收，不占版面 -->
+  <div id="pickwrap" hidden>
+    <div class="pick-head">
+      <input id="pickfilter" type="text" spellcheck="false" placeholder="过滤文件名…" />
+      <button id="pickclose">收起</button>
+    </div>
+    <div id="picklist"></div>
+  </div>
+
+  <main>
+    <aside id="params">
+      <p class="hint">还没有参数。先填脚本路径，点「读取参数」；不知道有哪些脚本就点「扫描」。</p>
+    </aside>
+    <section id="view">
+      <div id="empty">调好参数后点「重画」，图会出现在这里</div>
+      <div id="warn" hidden></div>
+
+      <div id="viewbar" hidden>
+        <label class="chk"><input id="compare" type="checkbox" /> 对照原图</label>
+      </div>
+
+      <figure id="figorig" hidden>
+        <figcaption>原图 · 脚本原本的样式</figcaption>
+        <img id="imgorig" alt="原图" />
+      </figure>
+
+      <figure id="figcur" hidden>
+        <figcaption id="capcur">当前</figcaption>
+        <img id="img" alt="预览" />
+      </figure>
+
+      <details id="diffbox">
+        <summary>改动预览</summary>
+        <pre id="diff"></pre>
+        <pre id="skipped" class="muted"></pre>
+      </details>
+      <details>
+        <summary>脚本输出</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <button id="render">重画</button>
+    <button id="plan">预览改动</button>
+    <button id="apply" class="danger">写回源码</button>
+    <span id="count" class="muted"></span>
+    <span id="status"></span>
+  </footer>
+</div>
+<script>/*__INLINE_JS__*/</script>
+</body>
+</html>

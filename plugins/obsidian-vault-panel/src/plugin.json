@@ -1,0 +1,50 @@
+{
+  "name": "obsidian-vault-panel",
+  "version": "0.6.0",
+  "description": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、保存本机 Obsidian vault 里的 Markdown 笔记。",
+  "description_i18n": {
+    "en": "Browse, edit and save Markdown notes from local Obsidian vaults directly in the ZCode session sidebar.",
+    "zh-CN": "在 ZCode 会话侧栏直接浏览、编辑、保存本机 Obsidian vault 里的 Markdown 笔记。"
+  },
+  "author": {
+    "name": "local"
+  },
+  "license": "MIT",
+  "keywords": [
+    "obsidian",
+    "markdown",
+    "notes",
+    "vault",
+    "sidebar",
+    "editor"
+  ],
+  "mcpServers": {
+    "vault": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/dist/server.mjs"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}",
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "obsidian-vault",
+        "title": {
+          "zh-CN": "Obsidian 笔记",
+          "en": "Obsidian Notes"
+        },
+        "icon": "file-text",
+        "server": "vault",
+        "resourceUri": "ui://obsidian-vault-panel/panel.html",
+        "availability": "session"
+      }
+    ]
+  }
+}

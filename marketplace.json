@@ -55,6 +55,33 @@
       "authorUrl": "https://github.com/anqiwen",
       "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/opencode-go-usage",
       "icon": "https://fastly.jsdelivr.net/gh/anqiwen/zcode-plugins@main/plugins/opencode-go-usage/assets/icon.png"
+    },
+    {
+      "name": "obsidian-vault-panel",
+      "source": "./plugins/obsidian-vault-panel",
+      "version": "0.6.0",
+      "description": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、新建与删除本机 Obsidian vault 里的 Markdown 笔记。",
+      "category": "productivity",
+      "displayName": "Obsidian Vault Panel",
+      "displayName_i18n": {
+        "zh-CN": "Obsidian 笔记"
+      },
+      "description_i18n": {
+        "zh-CN": "在 ZCode 会话侧栏直接浏览、实时预览式编辑、新建与删除本机 Obsidian vault 里的 Markdown 笔记。",
+        "en-US": "Browse, Live-Preview edit, create and delete Markdown notes from local Obsidian vaults directly in the ZCode session sidebar."
+      },
+      "tags": [
+        "obsidian",
+        "notes",
+        "markdown",
+        "sidebar",
+        "vault",
+        "editor"
+      ],
+      "author": "ZhiXHY",
+      "authorUrl": "https://github.com/anqiwen",
+      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/obsidian-vault-panel",
+      "icon": "https://fastly.jsdelivr.net/gh/anqiwen/zcode-plugins@main/plugins/obsidian-vault-panel/assets/icon.png"
     }
   ]
 }

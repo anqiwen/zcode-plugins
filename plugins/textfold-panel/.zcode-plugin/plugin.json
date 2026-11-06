@@ -1,0 +1,50 @@
+{
+  "name": "textfold-panel",
+  "version": "0.1.0",
+  "description": "在 ZCode 会话侧栏常驻打开 TextFold 科研长文语义折叠阅读器，支持自动探活、全屏阅读与 Zotero 文献联动。",
+  "description_i18n": {
+    "zh-CN": "在 ZCode 会话侧栏常驻打开 TextFold 科研长文语义折叠阅读器，支持自动探活、全屏阅读与 Zotero 文献联动。",
+    "en-US": "Persistent TextFold semantic-zoom reader panel in the ZCode sidebar with auto port discovery and Zotero integration."
+  },
+  "author": {
+    "name": "local"
+  },
+  "license": "MIT",
+  "keywords": [
+    "textfold",
+    "reader",
+    "pdf",
+    "zotero",
+    "sidebar",
+    "paper"
+  ],
+  "mcpServers": {
+    "textfold": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${ZCODE_PLUGIN_ROOT}/dist/server.mjs"
+      ],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}",
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "textfold-reader",
+        "title": {
+          "zh-CN": "TextFold 阅读器",
+          "en": "TextFold Reader"
+        },
+        "icon": "book-open",
+        "server": "textfold",
+        "resourceUri": "ui://textfold-panel/panel.html",
+        "availability": "session"
+      }
+    ]
+  }
+}

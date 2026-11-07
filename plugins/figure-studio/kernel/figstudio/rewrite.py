@@ -155,6 +155,32 @@ def _strip_existing_block(source: str) -> str:
 
 
 # ── 覆盖键 → 源码调用形式 ───────────────────────────────────
+# 隐藏标题/轴名：不是改某个参数，而是在调用末尾补 visible=False（保留原文案）
+HIDE_TARGETS = {
+    "axes.set_xlabel.hide": "set_xlabel",
+    "axes.set_ylabel.hide": "set_ylabel",
+    "axes.set_title.hide": "set_title",
+}
+
+
+def _call_close_offset(node, starts, lines, source: str):
+    """Call 节点右括号的字符偏移；对不上就返回 None。"""
+    end = _offset(starts, lines, node.end_lineno, node.end_col_offset)
+    i = end - 1
+    while i >= 0 and source[i] in " \t\r\n":
+        i -= 1
+    if i < 0 or source[i] != ")":
+        return None
+    return i
+
+
+def _prev_nonspace(source: str, pos: int) -> str:
+    i = pos - 1
+    while i >= 0 and source[i] in " \t\r\n":
+        i -= 1
+    return source[i] if i >= 0 else ""
+
+
 def _resolve_target(full: str):
     """返回 (方法名 或 方法名元组, 关键字名, 接收者提示)。关键字名为 None 表示位置参数。"""
     if full.startswith("figure.legend."):
@@ -207,6 +233,29 @@ def plan_rewrite(source: str, overrides: dict) -> Plan:
     for full, new_val in call_ov.items():
         if "#" in full:
             skipped.append((full, "逐序列参数：源码里只有一个调用点，无法按序列定位"))
+            continue
+        if full in HIDE_TARGETS:
+            method = HIDE_TARGETS[full]
+            if not bool(new_val):
+                skipped.append((full, "hide=false 不需要写回（默认就是显示）"))
+                continue
+            hit = 0
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or _call_attr(node) != method:
+                    continue
+                if any(kw.arg == "visible" for kw in node.keywords):
+                    skipped.append((full, "调用点已经有 visible=，不覆盖"))
+                    continue
+                pos = _call_close_offset(node, starts, lines, base)
+                if pos is None:
+                    continue
+                ins = "visible=False" if _prev_nonspace(base, pos) == "," else ", visible=False"
+                edits.append(Edit(pos, pos, ins, f"{method}(…) 末尾补 visible=False"))
+                hit += 1
+            if hit:
+                applied.append(full)
+            else:
+                skipped.append((full, f"源码里没有找到 {method}(...) 调用点"))
             continue
         method, kwarg, hint = _resolve_target(full)
         if method is None:

@@ -33,6 +33,10 @@ def check_layout(fig) -> list[dict]:
     boxes: list[tuple[str, str, object]] = []  # (kind, text, bbox)
 
     def collect(kind: str, obj) -> None:
+        # 被隐藏的文字不参与体检：get_window_extent 会退化成 Bbox.unit()，
+        # 多个隐藏标题会被误判成「互相压住」
+        if not getattr(obj, "get_visible", lambda: True)():
+            return
         text = _text_of(obj)
         if not text.strip():
             return

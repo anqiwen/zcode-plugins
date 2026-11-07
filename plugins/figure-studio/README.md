@@ -79,6 +79,8 @@ layout.engine: "constrained"     换自动排版，并停用 subplots_adjust
 - 逐序列参数：源码里只有一个调用点（在循环里），无法按序列定位
 - **结构**：图例该放哪、标题要不要省、要不要拆图——那是改图的设计，不是调参
 
+隐藏标题/轴名是个例外：预览里 `set_visible(False)`（`plt.xlabel/title` 会委托到 Axes 方法，同样生效）；写回时在调用末尾补 `visible=False`（`ax.set_title("…", visible=False)`），原文案保留。写回只认 `ax.set_xlabel/set_ylabel/set_title(...)` 这种写法，`fig.suptitle(...)`、`ax.title.set_text(...)` 管不到，纯 `plt.title(...)` 找不到调用点时会如实跳过；多行调用补完关键字可能少一个缩进，但语法合法。
+
 ## 一个真实的坑
 
 字号和图幅是**耦合**的，不能单独拉。实测同一张 3 面板 × 5 序列的图：
@@ -97,7 +99,7 @@ layout.engine: "constrained"     换自动排版，并停用 subplots_adjust
 
 ## 状态
 
-`0.1.1`——内核与链路已验证，UI 可用。
+`0.1.5`——内核与链路已验证，UI 可用。
 
 - [x] 拦截 / 覆盖 / 回写三条链路，真实脚本 12/12 通过
 - [x] 侧栏面板：参数列表、重画、diff 预览、写回
@@ -106,6 +108,17 @@ layout.engine: "constrained"     换自动排版，并停用 subplots_adjust
 - [x] 端到端冒烟测试 `node tests/smoke.mjs`（8 步）
 - [x] `0.1.1` 参数名中文化（未登记的键回落英文原名）、脚本列表改浮层并带过滤、原图与调参结果对照
 - [x] `0.1.1` 面板自测宿主 `node tests/mock-host.mjs`（真 server + 假宿主，浏览器里点完整链路）
+- [x] `0.1.2` 预览改为不可变快照：token 指向独立副本，重画/对照不会改掉旧 URI；旧副本按 12 张 FIFO 清理
+- [x] `0.1.2` 每个 server 进程独立预览目录（`.preview/p<pid>/`），多会话不再互相覆盖；退出清理，启动扫 24h 前的残留
+- [x] `0.1.2` 解释器探测 + `error` 事件处理：Python 缺失时返回可读错误，不再崩掉 MCP server
+- [x] `0.1.2` 回归测试 `node tests/preview-snapshot.mjs`（快照不变性 / 进程隔离 / 坏解释器三态）
+- [x] `0.1.3` 右栏加「源码」标签：带行号与轻量 Python 高亮，读自 `read_script_source`（上限 48 KB，超出提示截断）
+- [x] `0.1.3` 底部「告诉 AI」：把脚本、未写回的参数与你的原话拼成一条用户消息，`message` → `updateModelContext` → 复制降级
+- [x] `0.1.3` 写回源码后自动重读参数与源码，覆盖值清零
+- [x] `0.1.4` 左栏重排：参数搜索、只看已改、清空改动、默认全展开；底部固定计数条
+- [x] `0.1.4` 面板状态存 `sessionStorage`（脚本 / 覆盖值 / tab），重载不丢；读参数失败清空界面不留残影
+- [x] `0.1.4` 「按住看原图」闪对；忙时按钮真正禁用
+- [x] `0.1.5` 「显示 / 隐藏」X 轴标题、Y 轴标题、子图标题：预览时 `set_visible(False)`，写回时给调用补 `visible=False`（保留原文案）
 - [ ] 参数预设（存一套常用样式，下次一键套用）
 - [ ] R / ggplot2 脚本支持
 
@@ -114,8 +127,9 @@ layout.engine: "constrained"     换自动排版，并停用 subplots_adjust
 ```bash
 npm install
 npm run build              # 生成 dist/panel.html（把 ext-apps 打进去）
-node tests/smoke.mjs       # 端到端：握手 → 扫脚本 → 读参数 → 重画 → 读预览
-node tests/mock-host.mjs   # 浏览器里看面板：http://127.0.0.1:8795/
+node tests/smoke.mjs             # 端到端：握手 → 扫脚本 → 读参数 → 重画 → 读预览
+node tests/preview-snapshot.mjs  # 回归：预览快照不变 / 进程目录隔离 / 坏解释器不崩
+node tests/mock-host.mjs         # 浏览器里看面板：http://127.0.0.1:8795/
 ```
 
 Python 侧只依赖 `matplotlib` + `numpy`，不用装包。

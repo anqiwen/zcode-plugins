@@ -1,6 +1,6 @@
 {
   "name": "figure-studio",
-  "version": "0.1.1",
+  "version": "0.1.6",
   "description": "在侧栏调已有 Python 绘图脚本的样式参数，预览满意后把改动写回源码。不重画面、不接管数据，只改字号/配色/线宽/图幅等样式。",
   "description_i18n": {
     "zh-CN": "在侧栏调已有 Python 绘图脚本的样式参数，预览满意后把改动写回源码。",

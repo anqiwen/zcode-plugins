@@ -3,6 +3,10 @@
  *
  * ZCode 的插件面板不允许引用外部脚本/样式（validate 会拦截 <script src=>），
  * 所以 JS 与 CSS 必须内联进 HTML。
+ *
+ * ⚠️ 0.1.6 警告：src/ui 目前停留在 0.1.1 时代，缺 0.1.2–0.1.5 的面板特性
+ * （预览快照隔离、「源码」tab、「告诉 AI」、参数搜索等都在 dist/panel.html 里）。
+ * 直接重新构建会把面板打回旧版。先补齐 src 再构建，或以 dist/panel.html 为准。
  */
 
 import * as esbuild from "esbuild";

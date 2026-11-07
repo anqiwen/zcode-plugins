@@ -202,7 +202,7 @@ def _patch_axes_method(name: str) -> None:
     setattr(Axes, name, wrapper)
 
 
-def _patch_kwargs_method(cls, name: str, keys, scope: str) -> None:
+def _patch_kwargs_method(cls, name: str, keys, scope: str, hideable: bool = False) -> None:
     orig = getattr(cls, name, None)
     if orig is None:
         return
@@ -215,7 +215,17 @@ def _patch_kwargs_method(cls, name: str, keys, scope: str) -> None:
                 ov = _override(f"{scope}.{k}")
                 if ov is not _MISSING:
                     kw[k] = ov
-        return orig(self, *a, **kw)
+        ret = orig(self, *a, **kw)
+        # set_xlabel / set_title 返回 Text：隐藏是在调用之后加在对象上的，
+        # 不改 kwargs（文字是位置参数，改不到）。
+        if hideable:
+            ov = _override(f"{scope}.hide")
+            if ov is not _MISSING and bool(ov):
+                try:
+                    ret.set_visible(False)
+                except Exception:  # noqa: BLE001 - 拿不到 Text 就退化成「不隐藏」
+                    pass
+        return ret
 
     setattr(cls, name, wrapper)
 
@@ -319,8 +329,8 @@ def install(overrides: dict | None = None) -> None:
     for m in ("set_xticklabels", "set_yticklabels"):
         _patch_kwargs_method(Axes, m, ("fontsize",), f"axes.{m}")
     for m in ("set_xlabel", "set_ylabel"):
-        _patch_kwargs_method(Axes, m, ("fontsize", "labelpad", "fontweight"), f"axes.{m}")
-    _patch_kwargs_method(Axes, "set_title", ("fontsize", "pad", "fontweight"), "axes.set_title")
+        _patch_kwargs_method(Axes, m, ("fontsize", "labelpad", "fontweight"), f"axes.{m}", hideable=True)
+    _patch_kwargs_method(Axes, "set_title", ("fontsize", "pad", "fontweight"), "axes.set_title", hideable=True)
     _patch_kwargs_method(Axes, "grid", ("alpha", "color", "linestyle", "linewidth"), "grid")
 
     _patch_lim("set_xlim", "xlim")

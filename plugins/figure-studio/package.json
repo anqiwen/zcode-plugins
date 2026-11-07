@@ -1,6 +1,6 @@
 {
   "name": "figure-studio",
-  "version": "0.1.1",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "description": "Point at an existing matplotlib script, tune its style in a side panel, and write the changes back into the source.",

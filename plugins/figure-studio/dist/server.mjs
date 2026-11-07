@@ -7253,7 +7253,8 @@ var require_dist = __commonJS({
 });
 
 // server.mjs
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36818,9 +36819,50 @@ var PLUGIN_ROOT = process.env.ZCODE_PLUGIN_ROOT || path.dirname(BUNDLE_DIR);
 var WORKSPACE = path.resolve(process.env.ZCODE_WORKSPACE_ROOT || process.cwd());
 var KERNEL_DIR = path.join(PLUGIN_ROOT, "kernel");
 var WORKER_PY = path.join(KERNEL_DIR, "run_worker.py");
-var PREVIEW_DIR = path.join(PLUGIN_ROOT, ".preview");
+var PREVIEW_DIR = path.join(PLUGIN_ROOT, ".preview", `p${process.pid}`);
+var PREVIEW_CACHE_DIR = path.join(PREVIEW_DIR, "cache");
 var PANEL_HTML = path.join(BUNDLE_DIR, "panel.html");
 var PYTHON = process.env.FIGSTUDIO_PYTHON || "python";
+function cleanupPreviewDir() {
+  try {
+    worker?.kill();
+  } catch {
+  }
+  try {
+    fsSync.rmSync(PREVIEW_DIR, { recursive: true, force: true });
+  } catch {
+  }
+}
+process.on("exit", cleanupPreviewDir);
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function sweepOldPreviewDirs() {
+  try {
+    const base = path.dirname(PREVIEW_DIR);
+    const mine = path.basename(PREVIEW_DIR);
+    const cutoff = Date.now() - 24 * 3600 * 1e3;
+    for (const e of await fs.readdir(base, { withFileTypes: true })) {
+      if (!e.isDirectory() || e.name === mine) continue;
+      const full = path.join(base, e.name);
+      const st = await fs.stat(full).catch(() => null);
+      const isPidDir = /^p\d+$/.test(e.name);
+      const pidDead = isPidDir && !pidAlive(Number(e.name.slice(1)));
+      const oldEnough = !st || st.mtimeMs < cutoff;
+      if (pidDead || !isPidDir && oldEnough) {
+        await fs.rm(full, { recursive: true, force: true }).catch(() => {
+        });
+      }
+    }
+  } catch {
+  }
+}
+sweepOldPreviewDirs();
 var SURFACE_ID = "studio";
 var PANEL_URI = "ui://figure-studio/panel.html";
 var PREVIEW_PREFIX = "ui://figure-studio/preview/";
@@ -36836,9 +36878,20 @@ function resolveScript(input2) {
 }
 var worker = null;
 var nextId = 1;
+var pythonChecked = false;
 var pending = /* @__PURE__ */ new Map();
+function checkPython() {
+  if (pythonChecked) return;
+  pythonChecked = true;
+  const r = spawnSync(PYTHON, ["-c", "import matplotlib"], { windowsHide: true, timeout: 2e4 });
+  if (r.error || r.status !== 0) {
+    const detail = r.error ? r.error.message : String(r.stderr || "").trim().slice(0, 200) || `\u9000\u51FA\u7801 ${r.status}`;
+    throw new Error(`Python \u73AF\u5883\u4E0D\u53EF\u7528\uFF08${PYTHON}\uFF09\uFF1A${detail}\u3002\u9700\u8981 Python 3 + matplotlib\uFF0C\u53EF\u7528 FIGSTUDIO_PYTHON \u6307\u5B9A\u89E3\u91CA\u5668`);
+  }
+}
 function ensureWorker() {
   if (worker && !worker.killed) return worker;
+  checkPython();
   worker = spawn(PYTHON, ["-u", WORKER_PY], {
     cwd: KERNEL_DIR,
     env: {
@@ -36865,6 +36918,12 @@ function ensureWorker() {
     else entry.reject(new Error(`[${msg.error?.code}] ${msg.error?.message}`));
   });
   worker.stderr.on("data", (d) => process.stderr.write(`[kernel] ${d}`));
+  worker.on("error", (err) => {
+    const msg = err?.code === "ENOENT" ? `\u627E\u4E0D\u5230\u6E32\u67D3\u8FDB\u7A0B\u7684\u89E3\u91CA\u5668\uFF08${PYTHON}\uFF09\u3002\u8BF7\u5B89\u88C5 Python 3\uFF0C\u6216\u7528 FIGSTUDIO_PYTHON \u6307\u5B9A\u8DEF\u5F84` : `\u6E32\u67D3\u8FDB\u7A0B\u542F\u52A8\u5931\u8D25\uFF1A${err?.message || err}`;
+    for (const [, entry] of pending) entry.reject(new Error(msg));
+    pending.clear();
+    worker = null;
+  });
   worker.on("exit", (code) => {
     for (const [, entry] of pending) entry.reject(new Error(`\u6E32\u67D3\u8FDB\u7A0B\u9000\u51FA\uFF08code ${code}\uFF09`));
     pending.clear();
@@ -36894,17 +36953,33 @@ function callKernel(req, timeoutMs = 12e4) {
         reject(e);
       }
     });
-    proc.stdin.write(JSON.stringify({ id, ...req }) + "\n");
+    try {
+      proc.stdin.write(JSON.stringify({ id, ...req }) + "\n");
+    } catch (e) {
+      pending.delete(id);
+      clearTimeout(timer);
+      reject(new Error(`\u65E0\u6CD5\u5199\u5165\u6E32\u67D3\u8FDB\u7A0B\uFF1A${e?.message || e}`));
+    }
   });
 }
 var previewCache = /* @__PURE__ */ new Map();
 async function cachePreview(file2) {
-  const token = Math.random().toString(36).slice(2, 12);
+  await fs.mkdir(PREVIEW_CACHE_DIR, { recursive: true });
+  const ext = file2.toLowerCase().endsWith(".pdf") ? ".pdf" : ".png";
+  const token = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const snapshot = path.join(PREVIEW_CACHE_DIR, token + ext);
+  await fs.copyFile(file2, snapshot);
   previewCache.set(token, {
-    file: file2,
-    mime: file2.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/png"
+    file: snapshot,
+    mime: ext === ".pdf" ? "application/pdf" : "image/png"
   });
-  if (previewCache.size > 12) previewCache.delete(previewCache.keys().next().value);
+  if (previewCache.size > 12) {
+    const oldest = previewCache.keys().next().value;
+    const dropped = previewCache.get(oldest);
+    previewCache.delete(oldest);
+    fs.unlink(dropped.file).catch(() => {
+    });
+  }
   return token;
 }
 function ok(data) {
@@ -36920,8 +36995,14 @@ function fail(code, message) {
     isError: true
   };
 }
+function tidyError(message) {
+  const text = String(message || "");
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const last = lines[lines.length - 1] || text;
+  return last.replace(/^[A-Za-z_.]*(Error|Exception):\s*/, "") || last;
+}
 var server = new McpServer(
-  { name: "figure-studio", version: "0.1.1" },
+  { name: "figure-studio", version: "0.1.5" },
   { capabilities: { tools: { listChanged: false }, resources: { listChanged: false } } }
 );
 var appOnly = { visibility: ["app"] };
@@ -36994,7 +37075,42 @@ server.registerTool(
       const data = await callKernel({ cmd: "inspect", script: abs });
       return ok({ ...data, script: path.relative(WORKSPACE, abs) });
     } catch (e) {
-      return fail("inspect_failed", String(e.message || e));
+      return fail("inspect_failed", tidyError(e.message || e));
+    }
+  }
+);
+server.registerTool(
+  "read_script_source",
+  {
+    title: "\u8BFB\u53D6\u811A\u672C\u6E90\u7801",
+    description: "\u8FD4\u56DE\u5DE5\u4F5C\u533A\u5185\u7ED8\u56FE\u811A\u672C\u7684 UTF-8 \u6E90\u7801\uFF0C\u4F9B\u9762\u677F\u91CC\u67E5\u770B\u3002\u8D85\u8FC7\u4E0A\u9650\u65F6\u622A\u65AD\u5E76\u6807\u8BB0\u3002",
+    inputSchema: {
+      script: external_exports.string().describe("\u5DE5\u4F5C\u533A\u5185\u7684 .py \u8DEF\u5F84"),
+      max_bytes: external_exports.number().int().min(1e3).max(48e3).optional().describe("\u6700\u591A\u8FD4\u56DE\u7684\u5B57\u7B26\u6570\uFF0C\u9ED8\u8BA4 48000")
+    },
+    annotations: { readOnlyHint: true },
+    _meta: { ui: appOnly }
+  },
+  async ({ script, max_bytes = 48e3 }) => {
+    try {
+      const abs = resolveScript(script);
+      if (path.extname(abs).toLowerCase() !== ".py") {
+        return fail("not_python", `\u53EA\u652F\u6301\u8BFB\u53D6 .py \u811A\u672C\uFF1A${script}`);
+      }
+      const st = await fs.stat(abs);
+      if (!st.isFile()) return fail("not_a_file", `\u4E0D\u662F\u6587\u4EF6\uFF1A${script}`);
+      const full = await fs.readFile(abs, "utf8");
+      const truncated = full.length > max_bytes;
+      const text = truncated ? full.slice(0, max_bytes) : full;
+      return ok({
+        script: path.relative(WORKSPACE, abs),
+        total_lines: full.split("\n").length,
+        bytes: st.size,
+        truncated,
+        text
+      });
+    } catch (e) {
+      return fail("read_failed", tidyError(e.message || e));
     }
   }
 );
@@ -37030,7 +37146,7 @@ server.registerTool(
         script_stdout: data.script_stdout
       });
     } catch (e) {
-      return fail("render_failed", String(e.message || e));
+      return fail("render_failed", tidyError(e.message || e));
     }
   }
 );
@@ -37048,7 +37164,7 @@ server.registerTool(
       const abs = resolveScript(script);
       return ok(await callKernel({ cmd: "plan", script: abs, overrides }));
     } catch (e) {
-      return fail("plan_failed", String(e.message || e));
+      return fail("plan_failed", tidyError(e.message || e));
     }
   }
 );
@@ -37069,7 +37185,7 @@ server.registerTool(
       const abs = resolveScript(script);
       return ok(await callKernel({ cmd: "apply", script: abs, overrides, write }));
     } catch (e) {
-      return fail("apply_failed", String(e.message || e));
+      return fail("apply_failed", tidyError(e.message || e));
     }
   }
 );

@@ -108,12 +108,13 @@
       ],
       "author": "ZhiXHY",
       "authorUrl": "https://github.com/anqiwen",
-      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/textfold-panel"
+      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/textfold-panel",
+      "icon": "https://fastly.jsdelivr.net/gh/anqiwen/zcode-plugins@main/plugins/textfold-panel/assets/icon.png"
     },
     {
       "name": "figure-studio",
       "source": "./plugins/figure-studio",
-      "version": "0.1.1",
+      "version": "0.1.6",
       "description": "调已有 matplotlib 脚本的样式参数：读出脚本用到的字号/配色/线宽/图幅，在侧栏改完预览满意后写回源码，脚本逻辑一行不动。",
       "category": "productivity",
       "displayName": "Figure Studio",
@@ -134,7 +135,8 @@
       ],
       "author": "ZhiXHY",
       "authorUrl": "https://github.com/anqiwen",
-      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/figure-studio"
+      "homepage": "https://github.com/anqiwen/zcode-plugins/tree/main/plugins/figure-studio",
+      "icon": "https://fastly.jsdelivr.net/gh/anqiwen/zcode-plugins@main/plugins/figure-studio/assets/icon.png"
     }
   ]
 }
